@@ -1,37 +1,53 @@
-import express from "express";
-import cors from "cors";
-import "dotenv/config";
-import connectDB from "./configs/mongodb.js";
-import { clerkWebhooks, stripeWebhooks } from "./controllers/webhooks.js";
-import educatorRouter from "./routes/educatorRoutes.js";
-import { clerkMiddleware } from "@clerk/express";
-import connectCloudinary from "./configs/cloudinary.js";
-import courseRouter from "./routes/courseRoute.js";
-import userRouter from "./routes/userRoutes.js";
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
+const mongoose = require("mongoose");
+const authRoutes = require("./routes/auth-routes/index");
+const mediaRoutes = require("./routes/instructor-routes/media-routes");
+const instructorCourseRoutes = require("./routes/instructor-routes/course-routes");
+const instructorLiveLectureRoutes = require("./routes/instructor-routes/live-lecture-routes");
+const studentViewCourseRoutes = require("./routes/student-routes/course-routes");
+const studentViewOrderRoutes = require("./routes/student-routes/order-routes");
+const studentCoursesRoutes = require("./routes/student-routes/student-courses-routes");
+const studentCourseProgressRoutes = require("./routes/student-routes/course-progress-routes");
 
-// Initialize Express
 const app = express();
+const PORT = process.env.PORT ;
+const MONGO_URI = process.env.MONGODB_URI;
 
-// Connect to the MongoDB database
-await connectDB();
-// Connect to Cloudinary
-await connectCloudinary();
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL,
+    methods: ["GET", "POST", "DELETE", "PUT"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
-// Middlewares
-app.use(cors());
-app.use(clerkMiddleware());
+app.use(express.json());
 
-// Routes
-app.get("/", (req, res) => res.send("API Working"));
-app.post("/clerk", express.json(), clerkWebhooks);
-app.use("/api/educator", express.json(), educatorRouter);
-app.use("/api/course", express.json(), courseRouter);
-app.use("/api/user", express.json(), userRouter);
-app.post("/stripe", express.raw({ type: "application/json" }), stripeWebhooks);
+//database connection
+mongoose
+  .connect(MONGO_URI)
+  .then(() => console.log("mongodb is connected"))
+  .catch((e) => console.log(e));
 
-// Port
-const PORT = process.env.PORT || 5000;
+//routes configuration
+app.use("/auth", authRoutes);
+app.use("/instructor/course", instructorCourseRoutes);
+app.use("/instructor/live-lecture", instructorLiveLectureRoutes);
+app.use("/student/course", studentViewCourseRoutes);
+app.use("/student/order", studentViewOrderRoutes);
+app.use("/student/courses-bought", studentCoursesRoutes);
+app.use("/student/course-progress", studentCourseProgressRoutes);
+
+app.use((err, req, res, next) => {
+  console.log(err.stack);
+  res.status(500).json({
+    success: false,
+    message: "Something went wrong",
+  });
+});
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server is now running on port ${PORT}`);
 });

@@ -1,21 +1,38 @@
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
 
-const userSchema = new mongoose.Schema(
-  {
-    _id: { type: String, required: true },
-    name: { type: String, required: true },
-    email: { type: String, required: true },
-    imageUrl: { type: String, required: true },
-    enrolledCourses: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Course",
-      },
-    ],
+const UserSchema = new mongoose.Schema({
+  userName: {
+    type: String,
+    required: true,
+    trim: true
   },
-  { timestamps: true }
-);
+  userEmail: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    lowercase: true,
+    match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
+  },
+  password: {
+    type: String,
+    required: true
+  },
+  role: {
+    type: String,
+    enum: ["student", "instructor", "admin"],
+    default: "student"
+  },
+  active: {
+    type: Boolean,
+    default: true
+  },
+  lastLogin: {
+    type: Date,
+    default: Date.now
+  }
+}, {
+  timestamps: true
+});
 
-const User = mongoose.model("User", userSchema);
-
-export default User;
+module.exports = mongoose.model("User", UserSchema);
