@@ -5,6 +5,11 @@ import Signup from './pages/signup'
 import ForgotPassword from './pages/forgetpassword'
 import Dashboard from './pages/dashboard'
 import Profile from './pages/profile'
+import AllCourses from './pages/all-courses'
+import AllSchoolCourses from './pages/all-school-courses'
+import AllNotes from './pages/all-notes'
+import CourseDetail from './pages/course-detail'
+import NoteDetail from './pages/note-detail'
 import './App.css'
 
 function App() {
@@ -17,6 +22,11 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/courses" element={<AllCourses />} />
+        <Route path="/school-courses" element={<AllSchoolCourses />} />
+        <Route path="/notes" element={<AllNotes />} />
+        <Route path="/course/:courseId" element={<CourseDetail />} />
+        <Route path="/notes/:noteId" element={<NoteDetail />} />
       </Routes>
     </BrowserRouter>
   )

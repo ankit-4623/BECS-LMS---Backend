@@ -377,7 +377,7 @@ const Dashboard = () => {
           </Link>
 
           <ul className="hidden md:flex gap-12 list-none">
-            {['home', 'courses', 'school-level', 'notes', 'simulations', 'contact'].map((item) => (
+            {['home', 'courses', 'school-level', 'notes'].map((item) => (
               <li key={item}>
                 <button
                   onClick={() => scrollToSection(item)}
@@ -482,16 +482,32 @@ const Dashboard = () => {
 
         {/* Courses Section */}
         <section id="courses" className="mb-16 p-10 bg-white rounded-[15px] shadow-lg">
-          <h2
-            className="text-3xl font-bold text-slate-800 mb-8 flex items-center gap-3"
-            style={{ fontFamily: "'Poppins', sans-serif" }}
-          >
-            <span
-              className="w-1 h-8 rounded"
-              style={{ background: 'linear-gradient(180deg, #dc2626 0%, #991b1b 100%)' }}
-            />
-            Featured Courses
-          </h2>
+          <div className="flex justify-between items-center mb-8">
+            <h2
+              className="text-3xl font-bold text-slate-800 flex items-center gap-3"
+              style={{ fontFamily: "'Poppins', sans-serif" }}
+            >
+              <span
+                className="w-1 h-8 rounded"
+                style={{ background: 'linear-gradient(180deg, #dc2626 0%, #991b1b 100%)' }}
+              />
+              Featured Courses
+            </h2>
+            <Link
+              to="/courses"
+              className="text-white py-2.5 px-6 rounded-lg font-semibold text-sm cursor-pointer transition-all duration-300 hover:-translate-y-0.5 no-underline flex items-center gap-2"
+              style={{
+                background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)',
+                fontFamily: "'Poppins', sans-serif",
+              }}
+            >
+              View All
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {courses.map((course) => (
               <div
@@ -556,16 +572,32 @@ const Dashboard = () => {
 
         {/* School Level Section */}
         <section id="school-level" className="mb-16 p-10 bg-white rounded-[15px] shadow-lg">
-          <h2
-            className="text-3xl font-bold text-slate-800 mb-8 flex items-center gap-3"
-            style={{ fontFamily: "'Poppins', sans-serif" }}
-          >
-            <span
-              className="w-1 h-8 rounded"
-              style={{ background: 'linear-gradient(180deg, #dc2626 0%, #991b1b 100%)' }}
-            />
-            School Level Courses
-          </h2>
+          <div className="flex justify-between items-center mb-8">
+            <h2
+              className="text-3xl font-bold text-slate-800 flex items-center gap-3"
+              style={{ fontFamily: "'Poppins', sans-serif" }}
+            >
+              <span
+                className="w-1 h-8 rounded"
+                style={{ background: 'linear-gradient(180deg, #dc2626 0%, #991b1b 100%)' }}
+              />
+              School Level Courses
+            </h2>
+            <Link
+              to="/school-courses"
+              className="text-white py-2.5 px-6 rounded-lg font-semibold text-sm cursor-pointer transition-all duration-300 hover:-translate-y-0.5 no-underline flex items-center gap-2"
+              style={{
+                background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)',
+                fontFamily: "'Poppins', sans-serif",
+              }}
+            >
+              View All
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {schoolCourses.map((course) => (
               <div
@@ -630,16 +662,32 @@ const Dashboard = () => {
 
         {/* Notes Section */}
         <section id="notes" className="mb-16 p-10 bg-white rounded-[15px] shadow-lg">
-          <h2
-            className="text-3xl font-bold text-slate-800 mb-8 flex items-center gap-3"
-            style={{ fontFamily: "'Poppins', sans-serif" }}
-          >
-            <span
-              className="w-1 h-8 rounded"
-              style={{ background: 'linear-gradient(180deg, #dc2626 0%, #991b1b 100%)' }}
-            />
-            Study Notes
-          </h2>
+          <div className="flex justify-between items-center mb-8">
+            <h2
+              className="text-3xl font-bold text-slate-800 flex items-center gap-3"
+              style={{ fontFamily: "'Poppins', sans-serif" }}
+            >
+              <span
+                className="w-1 h-8 rounded"
+                style={{ background: 'linear-gradient(180deg, #dc2626 0%, #991b1b 100%)' }}
+              />
+              Study Notes
+            </h2>
+            <Link
+              to="/notes"
+              className="text-white py-2.5 px-6 rounded-lg font-semibold text-sm cursor-pointer transition-all duration-300 hover:-translate-y-0.5 no-underline flex items-center gap-2"
+              style={{
+                background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)',
+                fontFamily: "'Poppins', sans-serif",
+              }}
+            >
+              View All
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {notes.map((note) => (
               <div
