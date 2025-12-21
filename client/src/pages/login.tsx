@@ -1,23 +1,43 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { loginSchema } from '../lib/schemas';
+import type { LoginInput } from '../lib/schemas';
+import { ZodError } from 'zod';
 
 const Login = () => {
   const navigate = useNavigate();
+  const { login, isLoading, isAuthenticated, error: authError, clearError } = useAuth();
+  
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     remember: false,
   });
-  const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [pageLoaded, setPageLoaded] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     // Page load animation
     setTimeout(() => setPageLoaded(true), 100);
   }, []);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
+
+  // Show auth errors
+  useEffect(() => {
+    if (authError) {
+      setErrorMessage(authError);
+      clearError();
+    }
+  }, [authError, clearError]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -25,58 +45,55 @@ const Login = () => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
+    // Clear field error when user types
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => ({ ...prev, [name]: '' }));
+    }
   };
 
   const hideMessages = () => {
     setErrorMessage('');
     setSuccessMessage('');
+    setFieldErrors({});
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Prevent form resubmission
-    if (isSubmitting) return;
-
     hideMessages();
 
-    // Basic validation
-    if (!formData.email || !formData.password) {
-      setErrorMessage('Please fill in all fields.');
-      return;
-    }
+    // Validate with Zod
+    try {
+      const validatedData: LoginInput = loginSchema.parse({
+        userEmail: formData.email,
+        password: formData.password,
+      });
 
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      setErrorMessage('Please enter a valid email address.');
-      return;
-    }
-
-    // Password validation
-    if (formData.password.length < 6) {
-      setErrorMessage('Password must be at least 6 characters long.');
-      return;
-    }
-
-    setIsLoading(true);
-    setIsSubmitting(true);
-
-    // Simulate login process
-    setTimeout(() => {
-      // Demo credentials
-      if (formData.email === 'demo@becslearning.com' && formData.password === 'demo123') {
-        setSuccessMessage('Login successful! Redirecting to dashboard...');
-        setTimeout(() => {
-          navigate('/dashboard');
-        }, 2000);
+      // Call login API
+      await login(validatedData);
+      
+      setSuccessMessage('Login successful! Redirecting to dashboard...');
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1000);
+      
+    } catch (err) {
+      if (err instanceof ZodError) {
+        // Handle Zod validation errors
+        const errors: Record<string, string> = {};
+        err.issues.forEach((error) => {
+          const field = error.path[0] as string;
+          // Map userEmail back to email for form field
+          const fieldName = field === 'userEmail' ? 'email' : field;
+          errors[fieldName] = error.message;
+        });
+        setFieldErrors(errors);
+        setErrorMessage('Please fix the errors below.');
+      } else if (err instanceof Error) {
+        setErrorMessage(err.message);
       } else {
-        setErrorMessage('Invalid email or password. Try demo@becslearning.com / demo123');
+        setErrorMessage('An unexpected error occurred. Please try again.');
       }
-
-      setIsLoading(false);
-      setTimeout(() => setIsSubmitting(false), 3000);
-    }, 1500);
+    }
   };
 
   return (
@@ -252,24 +269,29 @@ const Login = () => {
                 placeholder="Enter your email"
                 className="w-full px-5 py-4 rounded-xl text-base transition-all duration-300 outline-none"
                 style={{
-                  border: '2px solid #e2e8f0',
+                  border: fieldErrors.email ? '2px solid #ef4444' : '2px solid #e2e8f0',
                   background: '#f8fafc',
                   fontFamily: 'inherit',
                 }}
                 onFocus={(e) => {
-                  e.target.style.borderColor = '#c53030';
+                  e.target.style.borderColor = fieldErrors.email ? '#ef4444' : '#c53030';
                   e.target.style.background = 'white';
-                  e.target.style.boxShadow = '0 0 0 4px rgba(197, 48, 48, 0.1)';
+                  e.target.style.boxShadow = fieldErrors.email 
+                    ? '0 0 0 4px rgba(239, 68, 68, 0.1)' 
+                    : '0 0 0 4px rgba(197, 48, 48, 0.1)';
                   e.target.parentElement!.style.transform = 'translateY(-2px)';
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = '#e2e8f0';
+                  e.target.style.borderColor = fieldErrors.email ? '#ef4444' : '#e2e8f0';
                   e.target.style.background = '#f8fafc';
                   e.target.style.boxShadow = 'none';
                   e.target.parentElement!.style.transform = 'translateY(0)';
                 }}
                 required
               />
+              {fieldErrors.email && (
+                <p className="text-red-500 text-sm mt-1">{fieldErrors.email}</p>
+              )}
             </div>
 
             {/* Password Field */}
@@ -286,24 +308,29 @@ const Login = () => {
                 placeholder="Enter your password"
                 className="w-full px-5 py-4 rounded-xl text-base transition-all duration-300 outline-none"
                 style={{
-                  border: '2px solid #e2e8f0',
+                  border: fieldErrors.password ? '2px solid #ef4444' : '2px solid #e2e8f0',
                   background: '#f8fafc',
                   fontFamily: 'inherit',
                 }}
                 onFocus={(e) => {
-                  e.target.style.borderColor = '#c53030';
+                  e.target.style.borderColor = fieldErrors.password ? '#ef4444' : '#c53030';
                   e.target.style.background = 'white';
-                  e.target.style.boxShadow = '0 0 0 4px rgba(197, 48, 48, 0.1)';
+                  e.target.style.boxShadow = fieldErrors.password 
+                    ? '0 0 0 4px rgba(239, 68, 68, 0.1)' 
+                    : '0 0 0 4px rgba(197, 48, 48, 0.1)';
                   e.target.parentElement!.style.transform = 'translateY(-2px)';
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = '#e2e8f0';
+                  e.target.style.borderColor = fieldErrors.password ? '#ef4444' : '#e2e8f0';
                   e.target.style.background = '#f8fafc';
                   e.target.style.boxShadow = 'none';
                   e.target.parentElement!.style.transform = 'translateY(0)';
                 }}
                 required
               />
+              {fieldErrors.password && (
+                <p className="text-red-500 text-sm mt-1">{fieldErrors.password}</p>
+              )}
             </div>
 
             {/* Form Options */}

@@ -1,41 +1,24 @@
 import { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
-
-interface VideoLesson {
-  id: string;
-  title: string;
-  duration: string;
-  videoUrl: string;
-}
-
-interface LiveClass {
-  id: string;
-  title: string;
-  date: string;
-  time: string;
-  duration: string;
-  meetLink: string;
-  instructor: string;
-  status: 'upcoming' | 'live' | 'completed';
-}
-
-interface CourseData {
-  id: string;
-  title: string;
-  description: string;
-  instructor: string;
-  duration: string;
-  totalLessons: number;
-  image: string;
-  videos: VideoLesson[];
-  liveClasses: LiveClass[];
-}
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import { useCourse, useCheckPurchase, useLiveLecture } from '../hooks/useCourses';
+import { useAuth } from '../context/AuthContext';
 
 const CourseDetail = () => {
   const { courseId } = useParams<{ courseId: string }>();
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [activeTab, setActiveTab] = useState<'videos' | 'live'>('videos');
-  const [course, setCourse] = useState<CourseData | null>(null);
+  const [_selectedVideo, _setSelectedVideo] = useState<string | null>(null);
+
+  // Fetch course details from API
+  const { data: course, isLoading, error } = useCourse(courseId || '');
+  
+  // Fetch live lecture for this course
+  const { data: liveLecture } = useLiveLecture(courseId || '');
+  
+  // Check if user has purchased this course
+  const { data: isPurchased } = useCheckPurchase(courseId || '', user?._id);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -45,109 +28,47 @@ const CourseDetail = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  useEffect(() => {
-    // Mock course data based on courseId
-    const coursesData: Record<string, CourseData> = {
-      math: {
-        id: 'math',
-        title: 'Mathematics for Beginners',
-        description: 'Master algebra, geometry, and arithmetic fundamentals with expert guidance. This comprehensive course covers all essential mathematical concepts.',
-        instructor: 'Dr. Anil Sharma',
-        duration: '24 hours',
-        totalLessons: 12,
-        image: 'https://images.unsplash.com/photo-1516321318423-f06f70d504f0?w=800&h=400&fit=crop',
-        videos: [
-          { id: 'v1', title: 'Introduction to Algebra', duration: '45 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-          { id: 'v2', title: 'Linear Equations', duration: '52 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-          { id: 'v3', title: 'Quadratic Equations', duration: '48 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-          { id: 'v4', title: 'Polynomials', duration: '55 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-          { id: 'v5', title: 'Geometry Basics', duration: '42 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-          { id: 'v6', title: 'Triangles and Properties', duration: '50 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-        ],
-        liveClasses: [
-          { id: 'l1', title: 'Doubt Clearing Session - Algebra', date: 'December 18, 2025', time: '10:00 AM', duration: '1 hour', meetLink: 'https://meet.google.com/abc-defg-hij', instructor: 'Dr. Anil Sharma', status: 'upcoming' },
-          { id: 'l2', title: 'Problem Solving Workshop', date: 'December 20, 2025', time: '2:00 PM', duration: '1.5 hours', meetLink: 'https://meet.google.com/xyz-uvwx-rst', instructor: 'Dr. Anil Sharma', status: 'upcoming' },
-          { id: 'l3', title: 'Weekly Q&A Session', date: 'December 22, 2025', time: '11:00 AM', duration: '1 hour', meetLink: 'https://meet.google.com/pqr-stuv-wxy', instructor: 'Dr. Anil Sharma', status: 'upcoming' },
-        ],
-      },
-      python: {
-        id: 'python',
-        title: 'Python Programming Basics',
-        description: 'Learn Python syntax and build simple programs from scratch. Perfect for beginners who want to start their programming journey.',
-        instructor: 'Ms. Priya Kapoor',
-        duration: '32 hours',
-        totalLessons: 16,
-        image: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&h=400&fit=crop',
-        videos: [
-          { id: 'v1', title: 'Introduction to Python', duration: '40 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-          { id: 'v2', title: 'Variables and Data Types', duration: '55 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-          { id: 'v3', title: 'Control Flow Statements', duration: '48 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-          { id: 'v4', title: 'Functions in Python', duration: '52 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-          { id: 'v5', title: 'Lists and Tuples', duration: '45 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-          { id: 'v6', title: 'Dictionaries and Sets', duration: '50 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-          { id: 'v7', title: 'File Handling', duration: '42 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-          { id: 'v8', title: 'Object Oriented Programming', duration: '60 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-        ],
-        liveClasses: [
-          { id: 'l1', title: 'Python Basics Q&A', date: 'December 19, 2025', time: '3:00 PM', duration: '1 hour', meetLink: 'https://meet.google.com/abc-defg-hij', instructor: 'Ms. Priya Kapoor', status: 'upcoming' },
-          { id: 'l2', title: 'Hands-on Coding Session', date: 'December 21, 2025', time: '10:00 AM', duration: '2 hours', meetLink: 'https://meet.google.com/xyz-uvwx-rst', instructor: 'Ms. Priya Kapoor', status: 'upcoming' },
-        ],
-      },
-      physics: {
-        id: 'physics',
-        title: 'Physics Fundamentals',
-        description: 'Explore motion, force, and energy with interactive experiments. Build a strong foundation in physics concepts.',
-        instructor: 'Prof. Rajesh Kumar',
-        duration: '28 hours',
-        totalLessons: 14,
-        image: 'https://images.unsplash.com/photo-1636633062127-fbac4e922b40?w=800&h=400&fit=crop',
-        videos: [
-          { id: 'v1', title: 'Introduction to Physics', duration: '35 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-          { id: 'v2', title: 'Motion in One Dimension', duration: '50 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-          { id: 'v3', title: 'Laws of Motion', duration: '55 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-          { id: 'v4', title: 'Work, Energy and Power', duration: '48 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-          { id: 'v5', title: 'Gravitation', duration: '45 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-        ],
-        liveClasses: [
-          { id: 'l1', title: 'Physics Problem Solving', date: 'December 18, 2025', time: '4:00 PM', duration: '1.5 hours', meetLink: 'https://meet.google.com/abc-defg-hij', instructor: 'Prof. Rajesh Kumar', status: 'live' },
-          { id: 'l2', title: 'Doubt Session - Mechanics', date: 'December 23, 2025', time: '11:00 AM', duration: '1 hour', meetLink: 'https://meet.google.com/xyz-uvwx-rst', instructor: 'Prof. Rajesh Kumar', status: 'upcoming' },
-        ],
-      },
-    };
+  const handlePurchase = () => {
+    if (!isAuthenticated) {
+      alert('Please login to purchase this course');
+      navigate('/login');
+      return;
+    }
+    // Navigate to order/payment page
+    alert('Redirecting to payment... (Payment integration needed)');
+  };
 
-    // Default course data for unknown courseIds
-    const defaultCourse: CourseData = {
-      id: courseId || 'unknown',
-      title: 'Course Content',
-      description: 'This course provides comprehensive learning materials and live sessions to help you master the subject.',
-      instructor: 'Expert Instructor',
-      duration: '20 hours',
-      totalLessons: 10,
-      image: 'https://images.unsplash.com/photo-1516321318423-f06f70d504f0?w=800&h=400&fit=crop',
-      videos: [
-        { id: 'v1', title: 'Introduction', duration: '40 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-        { id: 'v2', title: 'Core Concepts', duration: '50 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-        { id: 'v3', title: 'Advanced Topics', duration: '55 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-        { id: 'v4', title: 'Practical Examples', duration: '45 min', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-      ],
-      liveClasses: [
-        { id: 'l1', title: 'Live Doubt Session', date: 'December 20, 2025', time: '10:00 AM', duration: '1 hour', meetLink: 'https://meet.google.com/abc-defg-hij', instructor: 'Expert Instructor', status: 'upcoming' },
-      ],
-    };
-
-    setCourse(coursesData[courseId || ''] || defaultCourse);
-  }, [courseId]);
-
-  if (!course) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)' }}>
         <div className="text-center">
-          <div className="text-5xl mb-4">📚</div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
           <h2 className="text-2xl font-bold text-slate-800">Loading course...</h2>
         </div>
       </div>
     );
   }
+
+  if (error || !course) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)' }}>
+        <div className="text-center">
+          <div className="text-5xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold text-slate-800 mb-4">Course not found</h2>
+          <Link
+            to="/courses"
+            className="inline-block py-2.5 px-6 rounded-lg font-semibold text-white no-underline"
+            style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)' }}
+          >
+            Browse Courses
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate total lessons from curriculum
+  const totalLessons = course.curriculum?.length || 0;
 
   return (
     <div className="min-h-screen overflow-x-hidden" style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', color: '#1e293b' }}>
@@ -172,19 +93,37 @@ const CourseDetail = () => {
         {/* Course Header */}
         <div className="bg-white rounded-[15px] shadow-lg overflow-hidden mb-8">
           <div className="relative h-[200px]">
-            <img src={course.image} alt={course.title} className="w-full h-full object-cover" />
+            <img src={course.image || 'https://images.unsplash.com/photo-1516321318423-f06f70d504f0?w=800&h=400&fit=crop'} alt={course.title} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
             <div className="absolute bottom-6 left-6 right-6 text-white">
               <h1 className="text-3xl font-bold mb-2" style={{ fontFamily: "'Poppins', sans-serif" }}>{course.title}</h1>
               <p className="text-white/80 mb-3">{course.description}</p>
               <div className="flex items-center gap-6 text-sm">
-                <span className="flex items-center gap-2">👨‍🏫 {course.instructor}</span>
-                <span className="flex items-center gap-2">⏱️ {course.duration}</span>
-                <span className="flex items-center gap-2">📚 {course.totalLessons} Lessons</span>
+                <span className="flex items-center gap-2">👨‍🏫 {course.teachers?.teacherName || 'Instructor'}</span>
+                <span className="flex items-center gap-2">⏱️ {course.totalDuration || 'N/A'}</span>
+                <span className="flex items-center gap-2">📚 {totalLessons} Lessons</span>
+                <span className="flex items-center gap-2">💰 ₹{course.pricing || 0}</span>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Purchase Button (if not purchased) */}
+        {!isPurchased && (
+          <div className="bg-white rounded-[15px] shadow-lg p-6 mb-8 flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-slate-800 mb-1">Get Full Access</h3>
+              <p className="text-slate-600 text-sm">Unlock all {totalLessons} lessons and live classes</p>
+            </div>
+            <button
+              onClick={handlePurchase}
+              className="py-3 px-8 rounded-lg font-semibold text-white transition-all duration-300 hover:-translate-y-0.5"
+              style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 15px rgba(220, 38, 38, 0.3)' }}
+            >
+              Buy Now - ₹{course.pricing || 0}
+            </button>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex gap-4 mb-6">
@@ -193,14 +132,14 @@ const CourseDetail = () => {
             className={`py-3 px-6 rounded-lg font-semibold text-sm transition-all duration-300 ${activeTab === 'videos' ? 'text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}
             style={activeTab === 'videos' ? { background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)' } : {}}
           >
-            📹 Recorded Videos ({course.videos.length})
+            📹 Recorded Videos ({totalLessons})
           </button>
           <button
             onClick={() => setActiveTab('live')}
             className={`py-3 px-6 rounded-lg font-semibold text-sm transition-all duration-300 ${activeTab === 'live' ? 'text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}
             style={activeTab === 'live' ? { background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', boxShadow: '0 4px 12px rgba(5, 150, 105, 0.3)' } : {}}
           >
-            🔴 Live Classes ({course.liveClasses.length})
+            🔴 Live Class {liveLecture ? '(Available)' : '(Not Scheduled)'}
           </button>
         </div>
 
@@ -208,85 +147,118 @@ const CourseDetail = () => {
         {activeTab === 'videos' && (
           <div className="bg-white rounded-[15px] shadow-lg p-6">
             <h3 className="text-xl font-bold text-slate-800 mb-6" style={{ fontFamily: "'Poppins', sans-serif" }}>Course Videos</h3>
-            <div className="flex flex-col gap-4">
-              {course.videos.map((video, index) => (
-                <div key={video.id} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 hover:border-red-200 hover:bg-red-50/30 transition-all duration-300">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)' }}>
-                      {index + 1}
+            {course.curriculum && course.curriculum.length > 0 ? (
+              <div className="flex flex-col gap-4">
+                {course.curriculum.map((lecture, index) => {
+                  const canAccess = isPurchased || lecture.freePreview;
+                  return (
+                    <div key={lecture._id || index} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 hover:border-red-200 hover:bg-red-50/30 transition-all duration-300">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)' }}>
+                          {index + 1}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-semibold text-slate-800">{lecture.title}</h4>
+                            {lecture.freePreview && (
+                              <span className="py-0.5 px-2 bg-green-100 text-green-600 text-xs font-semibold rounded-full">Free Preview</span>
+                            )}
+                          </div>
+                          <p className="text-sm text-slate-500">⏱️ {lecture.duration || 'N/A'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {lecture.notesUrl && canAccess && (
+                          <a
+                            href={lecture.notesUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="py-2 px-4 rounded-lg font-semibold text-sm text-center no-underline transition-all duration-300 hover:-translate-y-0.5 flex items-center gap-2 text-slate-700 bg-slate-100 hover:bg-slate-200"
+                          >
+                            📄 Notes
+                          </a>
+                        )}
+                        {canAccess ? (
+                          <a
+                            href={lecture.videoUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="py-2 px-4 rounded-lg font-semibold text-sm text-center no-underline transition-all duration-300 hover:-translate-y-0.5 flex items-center gap-2 text-white"
+                            style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)' }}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M8 5v14l11-7z"/>
+                            </svg>
+                            Watch Video
+                          </a>
+                        ) : (
+                          <button
+                            onClick={handlePurchase}
+                            className="py-2 px-4 rounded-lg font-semibold text-sm text-center transition-all duration-300 flex items-center gap-2 text-white opacity-70 cursor-pointer"
+                            style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)' }}
+                          >
+                            🔒 Unlock
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-slate-800">{video.title}</h4>
-                      <p className="text-sm text-slate-500">⏱️ {video.duration}</p>
-                    </div>
-                  </div>
-                  <a
-                    href={video.videoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="py-2 px-4 rounded-lg font-semibold text-sm text-center no-underline transition-all duration-300 hover:-translate-y-0.5 flex items-center gap-2 text-white"
-                    style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)' }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M8 5v14l11-7z"/>
-                    </svg>
-                    Watch Video
-                  </a>
-                </div>
-              ))}
-            </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-500">
+                <div className="text-4xl mb-4">📹</div>
+                <p>No videos available yet</p>
+              </div>
+            )}
           </div>
         )}
 
         {/* Live Classes Content */}
         {activeTab === 'live' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {course.liveClasses.map((liveClass) => (
-              <div key={liveClass.id} className="bg-white rounded-[15px] shadow-lg p-6 border border-slate-200 hover:shadow-xl transition-all duration-300">
-                <div className="flex items-start justify-between mb-4">
-                  <h3 className="text-lg font-bold text-slate-800" style={{ fontFamily: "'Poppins', sans-serif" }}>{liveClass.title}</h3>
-                  <span
-                    className={`py-1 px-3 rounded-full text-xs font-semibold ${
-                      liveClass.status === 'live' ? 'bg-red-100 text-red-600' : liveClass.status === 'upcoming' ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-600'
-                    }`}
+          <div className="bg-white rounded-[15px] shadow-lg p-6">
+            <h3 className="text-xl font-bold text-slate-800 mb-6" style={{ fontFamily: "'Poppins', sans-serif" }}>Live Class</h3>
+            {liveLecture ? (
+              isPurchased ? (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-lg font-bold text-slate-800 mb-2">Join Live Session</h4>
+                      <p className="text-slate-600 text-sm mb-2">Click the button to join the live class for this course.</p>
+                      <p className="text-slate-500 text-xs">👨‍🏫 Instructor: {course.teachers?.teacherName || 'Instructor'}</p>
+                    </div>
+                    <a
+                      href={liveLecture.gmeetinglink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-3 px-6 rounded-lg font-semibold text-white no-underline transition-all duration-300 hover:-translate-y-0.5 flex items-center gap-2"
+                      style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)' }}
+                    >
+                      🔴 Join Live Class
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-4">🔒</div>
+                  <h4 className="text-lg font-bold text-slate-800 mb-2">Live Class Available!</h4>
+                  <p className="text-slate-600 mb-4">Purchase this course to access live classes.</p>
+                  <button
+                    onClick={handlePurchase}
+                    className="py-3 px-8 rounded-lg font-semibold text-white transition-all duration-300 hover:-translate-y-0.5"
+                    style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 15px rgba(220, 38, 38, 0.3)' }}
                   >
-                    {liveClass.status === 'live' ? '🔴 LIVE NOW' : liveClass.status === 'upcoming' ? '📅 Upcoming' : '✓ Completed'}
-                  </span>
+                    Buy Now - ₹{course.pricing || 0}
+                  </button>
                 </div>
-                <div className="flex flex-col gap-2 mb-4 text-sm text-slate-600">
-                  <div className="flex items-center gap-2">
-                    <span>📅</span>
-                    <span>{liveClass.date}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span>🕐</span>
-                    <span>{liveClass.time}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span>⏱️</span>
-                    <span>{liveClass.duration}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span>👨‍🏫</span>
-                    <span>{liveClass.instructor}</span>
-                  </div>
-                </div>
-                <a
-                  href={liveClass.meetLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`w-full py-3 px-4 rounded-lg font-semibold text-sm text-center text-white no-underline block transition-all duration-300 hover:-translate-y-0.5 ${liveClass.status === 'completed' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  style={{
-                    background: liveClass.status === 'live' ? 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)' : 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-                    boxShadow: liveClass.status === 'live' ? '0 4px 12px rgba(220, 38, 38, 0.3)' : '0 4px 12px rgba(5, 150, 105, 0.3)',
-                    fontFamily: "'Poppins', sans-serif",
-                  }}
-                  onClick={(e) => liveClass.status === 'completed' && e.preventDefault()}
-                >
-                  {liveClass.status === 'live' ? '🔴 Join Live Class Now' : liveClass.status === 'upcoming' ? '📅 Join Live Class' : 'Class Ended'}
-                </a>
+              )
+            ) : (
+              <div className="text-center py-8 text-slate-500">
+                <div className="text-4xl mb-4">📅</div>
+                <p>No live class scheduled for this course yet.</p>
+                <p className="text-sm text-slate-400 mt-2">Check back later for updates!</p>
               </div>
-            ))}
+            )}
           </div>
         )}
       </main>

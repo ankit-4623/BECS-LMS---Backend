@@ -1,47 +1,29 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
-
-interface Purchase {
-  id: string;
-  name: string;
-  price: number;
-  date: string;
-  type: 'course' | 'notes';
-}
-
-interface CoursePreview {
-  title: string;
-  teacher: string;
-  experience: string;
-  validity: string;
-}
+import { Link, useNavigate } from 'react-router-dom';
+import { useCourses, usePurchasedCourses, useAllNotes } from '../hooks/useCourses';
+import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
-  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const navigate = useNavigate();
+  const { user, isAuthenticated, logout } = useAuth();
   const [isPurchasesModalOpen, setIsPurchasesModalOpen] = useState(false);
-  const [isCircuitModalOpen, setIsCircuitModalOpen] = useState(false);
+  const [isCircuitModalOpen, _setIsCircuitModalOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   // Circuit simulator state
-  const [voltage, setVoltage] = useState(9);
-  const [r1, setR1] = useState(1000);
-  const [r2, setR2] = useState(2000);
-  const [powerOn, setPowerOn] = useState(true);
-  const [ledEnabled, setLedEnabled] = useState(false);
-  const [ledCurrent, setLedCurrent] = useState(20);
-  const [simulationResult, setSimulationResult] = useState('');
-  const [showResult, setShowResult] = useState(false);
+  const [voltage] = useState(9);
+  const [ledEnabled] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  useEffect(() => {
-    // Load purchases from localStorage
-    const storedPurchases = localStorage.getItem('becs_purchases');
-    if (storedPurchases) {
-      setPurchases(JSON.parse(storedPurchases));
-    }
+  // Fetch courses from API
+  const { data: courses = [], isLoading: coursesLoading } = useCourses();
+  
+  // Fetch purchased courses from API
+  const { data: purchasedCourses = [], isLoading: purchasesLoading } = usePurchasedCourses(user?._id);
 
+  useEffect(() => {
     // Scroll listener
     const handleScroll = () => {
       setScrolled(window.scrollY > 50);
@@ -56,72 +38,26 @@ const Dashboard = () => {
     }
   }, [isCircuitModalOpen]);
 
-  const purchaseCourse = (courseId: string, courseName: string, price: number) => {
-    const isNotes = courseId.includes('notes');
-    const purchase: Purchase = {
-      id: courseId,
-      name: courseName,
-      price: price,
-      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-      type: isNotes ? 'notes' : 'course',
-    };
-
-    if (purchases.find((p) => p.id === courseId)) {
-      alert(`You have already purchased this ${isNotes ? 'note' : 'course'}!`);
+  const handleBuyCourse = (courseId: string, _courseTitle: string) => {
+    if (!isAuthenticated) {
+      alert('Please login to purchase courses');
+      navigate('/login');
       return;
     }
-
-    const newPurchases = [...purchases, purchase];
-    setPurchases(newPurchases);
-    localStorage.setItem('becs_purchases', JSON.stringify(newPurchases));
-    alert(`✅ Successfully purchased "${courseName}"! Access it from "My Purchases".`);
+    // Navigate to course detail page for purchase
+    navigate(`/course/${courseId}`);
   };
 
-  const openPreview = (course: string) => {
-    const previews: Record<string, CoursePreview> = {
-      math: {
-        title: 'Mathematics for Beginners',
-        teacher: 'Dr. Anil Sharma, M.Sc., Ph.D.',
-        experience: '15+ years',
-        validity: '6 months',
-      },
-      python: {
-        title: 'Python Programming Basics',
-        teacher: 'Ms. Priya Kapoor, B.Tech',
-        experience: '10+ years',
-        validity: '9 months',
-      },
-      physics: {
-        title: 'Physics Fundamentals',
-        teacher: 'Prof. Rajesh Kumar, Ph.D.',
-        experience: '20+ years',
-        validity: '6 months',
-      },
-      english: {
-        title: 'English Literature Essentials',
-        teacher: 'Ms. Anita Desai, M.A.',
-        experience: '12+ years',
-        validity: '6 months',
-      },
-      web: {
-        title: 'Web Development Essentials',
-        teacher: 'Mr. Vikram Singh, B.Tech',
-        experience: '8+ years',
-        validity: '12 months',
-      },
-      chemistry: {
-        title: 'Chemistry Mastery',
-        teacher: 'Dr. Neha Patel, Ph.D.',
-        experience: '14+ years',
-        validity: '6 months',
-      },
-    };
+  const openPreview = (_courseId: string, courseTitle: string, teacherName?: string) => {
+    alert(`📚 ${courseTitle}\n\n👨‍🏫 Instructor: ${teacherName || 'Expert Instructor'}\n\nClick "Buy Now" to enroll!`);
+  };
 
-    const preview = previews[course];
-    if (preview) {
-      alert(
-        `📚 ${preview.title}\n\n👨‍🏫 Instructor: ${preview.teacher}\n📊 Experience: ${preview.experience}\n⏱️ Validity: ${preview.validity}\n\nClick "Buy Now" to enroll!`
-      );
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
     }
   };
 
@@ -199,37 +135,6 @@ const Dashboard = () => {
     ctx.stroke();
   };
 
-  const runSimulation = () => {
-    if (!powerOn) {
-      setSimulationResult('Circuit is powered off.');
-      setShowResult(true);
-      return;
-    }
-
-    const req = r1 + r2;
-    const current = voltage / req;
-    const vAcrossR2 = current * r2;
-    const powerR1 = current * current * r1;
-    const powerR2 = current * current * r2;
-
-    let result = `Total Current: ${(current * 1000).toFixed(2)} mA\n`;
-    result += `Voltage across R2: ${vAcrossR2.toFixed(2)} V\n`;
-    result += `Power in R1: ${(powerR1 * 1000).toFixed(2)} mW\n`;
-    result += `Power in R2: ${(powerR2 * 1000).toFixed(2)} mW`;
-
-    if (ledEnabled) {
-      const ledResistor = voltage / (ledCurrent / 1000) - (r1 + r2);
-      if (ledResistor > 0) {
-        result += `\nLED Resistor needed: ${ledResistor.toFixed(0)} Ω`;
-      } else {
-        result += '\nLED circuit overload! Reduce current.';
-      }
-    }
-
-    setSimulationResult(result);
-    setShowResult(true);
-  };
-
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
     if (element) {
@@ -237,104 +142,13 @@ const Dashboard = () => {
     }
   };
 
-  const courses = [
-    {
-      id: 'math',
-      title: 'Mathematics for Beginners',
-      description: 'Master algebra, geometry, and arithmetic fundamentals with expert guidance.',
-      image: 'https://images.unsplash.com/photo-1516321318423-f06f70d504f0?w=400&h=300&fit=crop',
-      badge: 'Popular',
-      duration: '24 hours',
-      rating: '4.8 (320)',
-      price: 29.99,
-    },
-    {
-      id: 'python',
-      title: 'Python Programming Basics',
-      description: 'Learn Python syntax and build simple programs from scratch.',
-      image: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400&h=300&fit=crop',
-      badge: 'Trending',
-      duration: '32 hours',
-      rating: '4.9 (450)',
-      price: 34.99,
-    },
-    {
-      id: 'web',
-      title: 'Web Development Essentials',
-      description: 'Build responsive websites with HTML, CSS, and JavaScript.',
-      image: 'https://images.unsplash.com/photo-1516321318423-f06f70d504f0?w=400&h=300&fit=crop',
-      badge: 'New',
-      duration: '40 hours',
-      rating: '4.7 (280)',
-      price: 44.99,
-    },
-  ];
+  // Get first 3 courses for display
+  const featuredCourses = courses.slice(0, 3);
+  const schoolCourses = courses.slice(0, 3); // Reuse courses for school level section
 
-  const schoolCourses = [
-    {
-      id: 'physics',
-      title: 'Physics Fundamentals',
-      description: 'Explore motion, force, and energy with interactive experiments.',
-      image: 'https://images.unsplash.com/photo-1636633062127-fbac4e922b40?w=400&h=300&fit=crop',
-      badge: 'Grade 9-10',
-      duration: '28 hours',
-      rating: '4.6 (210)',
-      price: 39.99,
-    },
-    {
-      id: 'english',
-      title: 'English Literature Essentials',
-      description: 'Study classic literature and develop advanced writing skills.',
-      image: 'https://images.unsplash.com/photo-1507842217343-583f20270319?w=400&h=300&fit=crop',
-      badge: 'Grade 11-12',
-      duration: '20 hours',
-      rating: '4.8 (195)',
-      price: 29.99,
-    },
-    {
-      id: 'chemistry',
-      title: 'Chemistry Mastery',
-      description: 'Master atomic structure, reactions, and organic chemistry.',
-      image: 'https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?w=400&h=300&fit=crop',
-      badge: 'Grade 10-12',
-      duration: '36 hours',
-      rating: '4.7 (320)',
-      price: 39.99,
-    },
-  ];
-
-  const notes = [
-    {
-      id: 'algebra-notes',
-      title: 'Mathematics Notes - Algebra',
-      description: 'CBSE Grade 10 - Comprehensive equations and polynomials guide.',
-      image: 'https://images.unsplash.com/photo-1507842217343-583f20270319?w=400&h=300&fit=crop',
-      badge: 'CBSE',
-      pages: '45 pages',
-      rating: '4.9 (180)',
-      price: 9.99,
-    },
-    {
-      id: 'chemistry-notes',
-      title: 'Science Notes - Chemistry',
-      description: 'ICSE Grade 9 - Atomic structure and chemical reactions.',
-      image: 'https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?w=400&h=300&fit=crop',
-      badge: 'ICSE',
-      pages: '52 pages',
-      rating: '4.8 (165)',
-      price: 8.99,
-    },
-    {
-      id: 'biology-notes',
-      title: 'Biology Notes - Cell Structure',
-      description: 'CBSE Grade 11 - Cell biology and organism classification.',
-      image: 'https://images.unsplash.com/photo-1636633062127-fbac4e922b40?w=400&h=300&fit=crop',
-      badge: 'CBSE',
-      pages: '38 pages',
-      rating: '4.7 (142)',
-      price: 7.99,
-    },
-  ];
+  // Fetch notes from API
+  const { data: allNotes = [], isLoading: notesLoading } = useAllNotes();
+  const notes = allNotes.slice(0, 3); // Get first 3 notes for display
 
   return (
     <div
@@ -405,15 +219,18 @@ const Dashboard = () => {
                 className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
                 style={{ background: '#fbbf24', color: '#1e293b' }}
               >
-                {purchases.length}
+                {purchasedCourses.length}
               </span>
             </button>
 
             <div className="relative">
               <button
                 onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                className="bg-transparent border-none cursor-pointer text-2xl text-slate-600 p-2 transition-colors duration-300 hover:text-red-600"
+                className="bg-transparent border-none cursor-pointer text-2xl text-slate-600 p-2 transition-colors duration-300 hover:text-red-600 flex items-center gap-2"
               >
+                {user && (
+                  <span className="text-sm font-medium text-slate-700">{user.userName}</span>
+                )}
                 <svg
                   width="24"
                   height="24"
@@ -448,6 +265,14 @@ const Dashboard = () => {
                   >
                     FAQ
                   </Link>
+                  {isAuthenticated && (
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left py-3 px-4 text-red-600 bg-transparent border-none font-medium text-sm cursor-pointer transition-all duration-300 hover:bg-red-50 hover:pl-5"
+                    >
+                      Logout
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -508,29 +333,40 @@ const Dashboard = () => {
               </svg>
             </Link>
           </div>
+          
+          {/* Loading State */}
+          {coursesLoading && (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-red-600 mx-auto mb-4"></div>
+              <p className="text-slate-500">Loading courses...</p>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {courses.map((course) => (
+            {featuredCourses.map((course) => (
               <div
-                key={course.id}
+                key={course._id}
                 className="bg-white rounded-xl overflow-hidden transition-all duration-300 border border-slate-200 hover:-translate-y-2 hover:shadow-xl hover:border-red-600"
                 style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}
               >
                 <div className="relative">
                   <img
-                    src={course.image}
+                    src={course.image || 'https://images.unsplash.com/photo-1516321318423-f06f70d504f0?w=400&h=300&fit=crop'}
                     alt={course.title}
                     className="w-full h-[180px] object-cover"
                     style={{ background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)' }}
                   />
-                  <span
-                    className="absolute top-3 right-3 text-white py-1.5 px-3 rounded-full text-xs font-semibold"
-                    style={{
-                      background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
-                      fontFamily: "'Poppins', sans-serif",
-                    }}
-                  >
-                    {course.badge}
-                  </span>
+                  {course.level && (
+                    <span
+                      className="absolute top-3 right-3 text-white py-1.5 px-3 rounded-full text-xs font-semibold"
+                      style={{
+                        background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                        fontFamily: "'Poppins', sans-serif",
+                      }}
+                    >
+                      {course.level}
+                    </span>
+                  )}
                 </div>
                 <div className="p-6">
                   <h3
@@ -539,21 +375,21 @@ const Dashboard = () => {
                   >
                     {course.title}
                   </h3>
-                  <p className="text-slate-500 text-sm mb-4 leading-relaxed">{course.description}</p>
+                  <p className="text-slate-500 text-sm mb-4 leading-relaxed line-clamp-2">{course.description || course.subtitle}</p>
                   <div className="flex gap-4 mb-4 text-sm text-slate-400">
-                    <span className="flex items-center gap-1">⏱️ {course.duration}</span>
-                    <span className="flex items-center gap-1">⭐ {course.rating}</span>
+                    {course.totalDuration && <span className="flex items-center gap-1">⏱️ {course.totalDuration}</span>}
+                    {course.category && <span className="flex items-center gap-1">📚 {course.category}</span>}
                   </div>
                   <div className="flex gap-3">
                     <button
-                      onClick={() => openPreview(course.id)}
+                      onClick={() => openPreview(course._id, course.title, course.teachers?.teacherName)}
                       className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center bg-slate-100 text-slate-800 border border-slate-200 hover:bg-slate-200"
                       style={{ fontFamily: "'Poppins', sans-serif" }}
                     >
                       Preview
                     </button>
                     <button
-                      onClick={() => purchaseCourse(course.id, course.title, course.price)}
+                      onClick={() => handleBuyCourse(course._id, course.title)}
                       className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white hover:-translate-y-0.5"
                       style={{
                         background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
@@ -561,7 +397,7 @@ const Dashboard = () => {
                         fontFamily: "'Poppins', sans-serif",
                       }}
                     >
-                      ${course.price}
+                      ₹{course.pricing || 0}
                     </button>
                   </div>
                 </div>
@@ -601,26 +437,28 @@ const Dashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {schoolCourses.map((course) => (
               <div
-                key={course.id}
+                key={course._id}
                 className="bg-white rounded-xl overflow-hidden transition-all duration-300 border border-slate-200 hover:-translate-y-2 hover:shadow-xl hover:border-red-600"
                 style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}
               >
                 <div className="relative">
                   <img
-                    src={course.image}
+                    src={course.image || 'https://images.unsplash.com/photo-1636633062127-fbac4e922b40?w=400&h=300&fit=crop'}
                     alt={course.title}
                     className="w-full h-[180px] object-cover"
                     style={{ background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)' }}
                   />
-                  <span
-                    className="absolute top-3 right-3 text-white py-1.5 px-3 rounded-full text-xs font-semibold"
-                    style={{
-                      background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
-                      fontFamily: "'Poppins', sans-serif",
-                    }}
-                  >
-                    {course.badge}
-                  </span>
+                  {course.level && (
+                    <span
+                      className="absolute top-3 right-3 text-white py-1.5 px-3 rounded-full text-xs font-semibold"
+                      style={{
+                        background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                        fontFamily: "'Poppins', sans-serif",
+                      }}
+                    >
+                      {course.level}
+                    </span>
+                  )}
                 </div>
                 <div className="p-6">
                   <h3
@@ -629,21 +467,21 @@ const Dashboard = () => {
                   >
                     {course.title}
                   </h3>
-                  <p className="text-slate-500 text-sm mb-4 leading-relaxed">{course.description}</p>
+                  <p className="text-slate-500 text-sm mb-4 leading-relaxed line-clamp-2">{course.description || course.subtitle}</p>
                   <div className="flex gap-4 mb-4 text-sm text-slate-400">
-                    <span className="flex items-center gap-1">⏱️ {course.duration}</span>
-                    <span className="flex items-center gap-1">⭐ {course.rating}</span>
+                    {course.totalDuration && <span className="flex items-center gap-1">⏱️ {course.totalDuration}</span>}
+                    {course.category && <span className="flex items-center gap-1">📚 {course.category}</span>}
                   </div>
                   <div className="flex gap-3">
                     <button
-                      onClick={() => openPreview(course.id)}
+                      onClick={() => openPreview(course._id, course.title, course.teachers?.teacherName)}
                       className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center bg-slate-100 text-slate-800 border border-slate-200 hover:bg-slate-200"
                       style={{ fontFamily: "'Poppins', sans-serif" }}
                     >
                       Preview
                     </button>
                     <button
-                      onClick={() => purchaseCourse(course.id, course.title, course.price)}
+                      onClick={() => handleBuyCourse(course._id, course.title)}
                       className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white hover:-translate-y-0.5"
                       style={{
                         background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
@@ -651,7 +489,7 @@ const Dashboard = () => {
                         fontFamily: "'Poppins', sans-serif",
                       }}
                     >
-                      ${course.price}
+                      ₹{course.pricing || 0}
                     </button>
                   </div>
                 </div>
@@ -689,57 +527,69 @@ const Dashboard = () => {
             </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {notes.map((note) => (
-              <div
-                key={note.id}
-                className="bg-white rounded-xl overflow-hidden transition-all duration-300 border border-slate-200 hover:-translate-y-2 hover:shadow-xl hover:border-red-600"
-                style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}
-              >
-                <div className="relative">
-                  <img
-                    src={note.image}
-                    alt={note.title}
-                    className="w-full h-[180px] object-cover"
-                    style={{ background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)' }}
-                  />
-                  <span
-                    className="absolute top-3 right-3 text-white py-1.5 px-3 rounded-full text-xs font-semibold"
-                    style={{
-                      background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
-                      fontFamily: "'Poppins', sans-serif",
-                    }}
-                  >
-                    {note.badge}
-                  </span>
-                </div>
-                <div className="p-6">
-                  <h3
-                    className="text-lg font-semibold text-slate-800 mb-2"
-                    style={{ fontFamily: "'Poppins', sans-serif" }}
-                  >
-                    {note.title}
-                  </h3>
-                  <p className="text-slate-500 text-sm mb-4 leading-relaxed">{note.description}</p>
-                  <div className="flex gap-4 mb-4 text-sm text-slate-400">
-                    <span className="flex items-center gap-1">📄 {note.pages}</span>
-                    <span className="flex items-center gap-1">⭐ {note.rating}</span>
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => purchaseCourse(note.id, note.title, note.price)}
-                      className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white hover:-translate-y-0.5"
+            {notesLoading ? (
+              <div className="col-span-full text-center py-8 text-slate-500">Loading notes...</div>
+            ) : notes.length === 0 ? (
+              <div className="col-span-full text-center py-8 text-slate-500">No notes available</div>
+            ) : (
+              notes.map((note) => (
+                <div
+                  key={note._id}
+                  className="bg-white rounded-xl overflow-hidden transition-all duration-300 border border-slate-200 hover:-translate-y-2 hover:shadow-xl hover:border-red-600"
+                  style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}
+                >
+                  <div className="relative">
+                    <div
+                      className="w-full h-[180px] flex items-center justify-center"
+                      style={{ background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)' }}
+                    >
+                      <svg className="w-16 h-16 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <span
+                      className="absolute top-3 right-3 text-white py-1.5 px-3 rounded-full text-xs font-semibold"
                       style={{
                         background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
-                        boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)',
                         fontFamily: "'Poppins', sans-serif",
                       }}
                     >
-                      ${note.price}
-                    </button>
+                      {note.category || note.level || 'PDF'}
+                    </span>
+                  </div>
+                  <div className="p-6">
+                    <h3
+                      className="text-lg font-semibold text-slate-800 mb-2"
+                      style={{ fontFamily: "'Poppins', sans-serif" }}
+                    >
+                      {note.title}
+                    </h3>
+                    <p className="text-slate-500 text-sm mb-4 leading-relaxed">
+                      From: {note.courseTitle}
+                    </p>
+                    <div className="flex gap-4 mb-4 text-sm text-slate-400">
+                      <span className="flex items-center gap-1">📚 {note.level || 'All levels'}</span>
+                      <span className="flex items-center gap-1">📁 {note.category || 'General'}</span>
+                    </div>
+                    <div className="flex gap-3">
+                      <a
+                        href={note.notesUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white hover:-translate-y-0.5 no-underline"
+                        style={{
+                          background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                          boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)',
+                          fontFamily: "'Poppins', sans-serif",
+                        }}
+                      >
+                        View Notes
+                      </a>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </section>
 
@@ -774,7 +624,39 @@ const Dashboard = () => {
                 ×
               </button>
             </div>
-            {purchases.length === 0 ? (
+            
+            {/* Loading State */}
+            {purchasesLoading && (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-red-600 mx-auto mb-4"></div>
+                <p className="text-slate-500">Loading your purchases...</p>
+              </div>
+            )}
+            
+            {/* Not Authenticated */}
+            {!isAuthenticated && (
+              <div className="text-center py-12 px-4">
+                <div className="text-5xl mb-4">🔐</div>
+                <h3
+                  className="text-xl font-semibold text-slate-800 mb-2"
+                  style={{ fontFamily: "'Poppins', sans-serif" }}
+                >
+                  Please Login
+                </h3>
+                <p className="text-slate-500 mb-6">
+                  Login to view your purchased courses and notes.
+                </p>
+                <Link
+                  to="/login"
+                  className="inline-block py-2.5 px-6 rounded-lg font-semibold text-white no-underline"
+                  style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)' }}
+                >
+                  Login Now
+                </Link>
+              </div>
+            )}
+            
+            {isAuthenticated && !purchasesLoading && purchasedCourses.length === 0 && (
               <div className="text-center py-12 px-4">
                 <div className="text-5xl mb-4">📚</div>
                 <h3
@@ -787,11 +669,13 @@ const Dashboard = () => {
                   You haven't purchased any courses or notes yet. Explore our collection and start learning today!
                 </p>
               </div>
-            ) : (
+            )}
+            
+            {isAuthenticated && !purchasesLoading && purchasedCourses.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {purchases.map((purchase) => (
+                {purchasedCourses.map((purchase) => (
                   <div
-                    key={purchase.id}
+                    key={purchase.courseId}
                     className="rounded-xl p-6 border transition-all duration-300 hover:-translate-y-1"
                     style={{
                       background: 'linear-gradient(135deg, #fef2f2 0%, #fce7e7 100%)',
@@ -799,21 +683,28 @@ const Dashboard = () => {
                       boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
                     }}
                   >
+                    {purchase.courseImage && (
+                      <img 
+                        src={purchase.courseImage} 
+                        alt={purchase.title}
+                        className="w-full h-32 object-cover rounded-lg mb-4"
+                      />
+                    )}
                     <h3
                       className="text-lg font-semibold text-slate-800 mb-2"
                       style={{ fontFamily: "'Poppins', sans-serif" }}
                     >
-                      {purchase.name}
+                      {purchase.title}
                     </h3>
-                    <p className="text-slate-500 text-sm mb-4">
-                      Price: <strong>${purchase.price.toFixed(2)}</strong>
+                    <p className="text-slate-500 text-sm mb-2">
+                      Instructor: <strong>{purchase.instructorName}</strong>
                     </p>
                     <div className="flex items-center gap-1.5 text-sm text-slate-400 mb-4">
-                      📅 Purchased on {purchase.date}
+                      📅 Purchased on {new Date(purchase.dateOfPurchase).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                     </div>
                     <div className="flex gap-3">
                       <Link
-                        to={purchase.type === 'notes' ? `/notes/${purchase.id}` : `/course/${purchase.id}`}
+                        to={`/course/${purchase.courseId}`}
                         className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white no-underline hover:-translate-y-0.5"
                         style={{
                           background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
@@ -821,7 +712,7 @@ const Dashboard = () => {
                           fontFamily: "'Poppins', sans-serif",
                         }}
                       >
-                        {purchase.type === 'notes' ? 'View Notes' : 'View Course'}
+                        View Course
                       </Link>
                     </div>
                   </div>

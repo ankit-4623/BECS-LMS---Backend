@@ -1,16 +1,24 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Shield } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
   const navigate = useNavigate();
+  const { login, isAuthenticated } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
+
+  // Redirect if already authenticated
+  if (isAuthenticated) {
+    navigate('/dashboard');
+    return null;
+  }
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -36,11 +44,17 @@ const Login = () => {
     if (!validateForm()) return;
 
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    setErrors({});
+    
+    try {
+      await login(formData.email, formData.password);
       navigate('/dashboard');
-    }, 1500);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Login failed. Please try again.';
+      setErrors({ general: errorMessage });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -82,6 +96,12 @@ const Login = () => {
         <div className="p-12 flex flex-col justify-center">
           <h2 className="text-2xl font-bold text-slate-800 mb-2">Welcome Back</h2>
           <p className="text-slate-500 mb-8">Sign in to access admin panel</p>
+
+          {errors.general && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+              {errors.general}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>

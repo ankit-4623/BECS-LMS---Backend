@@ -15,11 +15,29 @@ const app = express();
 const PORT = process.env.PORT ;
 const MONGO_URI = process.env.MONGODB_URI;
 
+// CORS configuration
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5173',
+];
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL,
-    methods: ["GET", "POST", "DELETE", "PUT"],
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(null, true); // Allow all origins in development
+      }
+    },
+    methods: ["GET", "POST", "DELETE", "PUT", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
   })
 );
 

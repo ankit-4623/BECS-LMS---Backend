@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { signupSchema } from '../lib/schemas';
+import { ZodError } from 'zod';
 
 interface ValidationState {
   firstName: boolean;
@@ -25,6 +28,7 @@ interface FormData {
 
 const Signup = () => {
   const navigate = useNavigate();
+  const { signup, isLoading, isAuthenticated, error: authError, clearError } = useAuth();
   const [pageLoaded, setPageLoaded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -74,6 +78,21 @@ const Signup = () => {
   useEffect(() => {
     setTimeout(() => setPageLoaded(true), 100);
   }, []);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
+
+  // Show auth errors
+  useEffect(() => {
+    if (authError) {
+      setErrorMessage(authError);
+      clearError();
+    }
+  }, [authError, clearError]);
 
   // Password requirements regex
   const requirements = {
@@ -201,64 +220,92 @@ const Signup = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return;
+    if (isSubmitting || isLoading) return;
 
     setIsSubmitting(true);
+    setErrorMessage('');
+    setSuccessMessage('');
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      // Validate with Zod
+      const validatedData = signupSchema.parse({
+        userName: `${formData.firstName} ${formData.lastName}`.trim(),
+        userEmail: formData.email,
+        phone: formData.phone || undefined,
+        password: formData.password,
+        confirmPassword: formData.confirmPassword,
+      });
 
-      const allValid = Object.values(validationState).every(Boolean);
-      if (allValid) {
-        setSuccessMessage('Account created successfully!');
-        setErrorMessage('');
-        // Reset form
-        setFormData({
-          firstName: '',
-          lastName: '',
-          email: '',
-          phone: '',
-          course: '',
-          password: '',
-          confirmPassword: '',
-          terms: false,
-        });
-        setValidationState({
-          firstName: false,
-          lastName: false,
-          email: false,
-          phone: false,
-          course: false,
-          password: false,
-          confirmPassword: false,
-          terms: false,
-        });
-        setPasswordRequirements({
-          length: false,
-          uppercase: false,
-          lowercase: false,
-          number: false,
-          special: false,
-        });
-        setPasswordStrength({ percentage: 0, text: '', class: '' });
-        setFieldFeedback({
-          firstName: { message: '', type: '' },
-          lastName: { message: '', type: '' },
-          email: { message: '', type: '' },
-          phone: { message: '', type: '' },
-          course: { message: '', type: '' },
-          confirmPassword: { message: '', type: '' },
-        });
-
-        setTimeout(() => setSuccessMessage(''), 3000);
-      } else {
-        setErrorMessage('Please fix the errors in the form.');
-        setSuccessMessage('');
+      // Check terms
+      if (!formData.terms) {
+        setErrorMessage('Please accept the terms and conditions.');
+        setIsSubmitting(false);
+        return;
       }
-    }, 1500);
+
+      // Call signup API
+      await signup(validatedData);
+      
+      setSuccessMessage('Account created successfully! Redirecting to login...');
+      
+      // Reset form
+      setFormData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        course: '',
+        password: '',
+        confirmPassword: '',
+        terms: false,
+      });
+      setValidationState({
+        firstName: false,
+        lastName: false,
+        email: false,
+        phone: false,
+        course: false,
+        password: false,
+        confirmPassword: false,
+        terms: false,
+      });
+      setPasswordRequirements({
+        length: false,
+        uppercase: false,
+        lowercase: false,
+        number: false,
+        special: false,
+      });
+      setPasswordStrength({ percentage: 0, text: '', class: '' });
+      setFieldFeedback({
+        firstName: { message: '', type: '' },
+        lastName: { message: '', type: '' },
+        email: { message: '', type: '' },
+        phone: { message: '', type: '' },
+        course: { message: '', type: '' },
+        confirmPassword: { message: '', type: '' },
+      });
+
+      // Redirect to login after successful signup
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
+
+    } catch (err) {
+      if (err instanceof ZodError) {
+        // Get the first error message
+        const firstError = err.issues[0];
+        setErrorMessage(firstError.message);
+      } else if (err instanceof Error) {
+        setErrorMessage(err.message);
+      } else {
+        setErrorMessage('An unexpected error occurred. Please try again.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isFormValid = Object.values(validationState).every(Boolean);

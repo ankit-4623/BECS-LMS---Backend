@@ -1,42 +1,21 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-
-interface Purchase {
-  id: string;
-  name: string;
-  price: number;
-  date: string;
-  type: 'course' | 'notes';
-}
-
-interface UserProfile {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-}
+import { Link, useNavigate } from 'react-router-dom';
+import { usePurchasedCourses } from '../hooks/useCourses';
+import { useAuth } from '../context/AuthContext';
 
 const Profile = () => {
-  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const navigate = useNavigate();
+  const { user, isAuthenticated, logout } = useAuth();
   const [scrolled, setScrolled] = useState(false);
-  const [user, setUser] = useState<UserProfile>({
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john.doe@example.com',
-    phone: '+91-9876543210',
-  });
+
+  // Fetch purchased courses from API
+  const { data: purchasedCourses = [], isLoading: purchasesLoading } = usePurchasedCourses(user?._id);
 
   useEffect(() => {
-    // Load purchases from localStorage
-    const storedPurchases = localStorage.getItem('becs_purchases');
-    if (storedPurchases) {
-      setPurchases(JSON.parse(storedPurchases));
-    }
-
-    // Load user data from localStorage (if exists)
-    const storedUser = localStorage.getItem('becs_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    // Redirect to login if not authenticated
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
     }
 
     // Scroll listener
@@ -45,10 +24,21 @@ const Profile = () => {
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [isAuthenticated, navigate]);
 
-  const purchasedCourses = purchases.filter((p) => p.type === 'course');
-  const purchasedNotes = purchases.filter((p) => p.type === 'notes');
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
+  // Don't render if not authenticated
+  if (!isAuthenticated || !user) {
+    return null;
+  }
 
   return (
     <div
@@ -131,7 +121,7 @@ const Profile = () => {
                 boxShadow: '0 8px 25px rgba(220, 38, 38, 0.3)',
               }}
             >
-              {user.firstName.charAt(0)}{user.lastName.charAt(0)}
+              {user.userName?.charAt(0)?.toUpperCase() || 'U'}
             </div>
 
             {/* Profile Info */}
@@ -140,7 +130,7 @@ const Profile = () => {
                 className="text-3xl font-bold text-slate-800 mb-4"
                 style={{ fontFamily: "'Poppins', sans-serif" }}
               >
-                {user.firstName} {user.lastName}
+                {user.userName}
               </h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -156,7 +146,7 @@ const Profile = () => {
                   </div>
                   <div>
                     <p className="text-xs text-slate-400 mb-0.5">Email</p>
-                    <p className="text-slate-700 font-medium">{user.email}</p>
+                    <p className="text-slate-700 font-medium">{user.userEmail}</p>
                   </div>
                 </div>
 
@@ -166,12 +156,13 @@ const Profile = () => {
                     style={{ background: '#fef2f2' }}
                   >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2">
-                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                      <circle cx="12" cy="8" r="4" />
+                      <path d="M12 14c-3.3 0-6 2.7-6 6h12c0-3.3-2.7-6-6-6z" />
                     </svg>
                   </div>
                   <div>
-                    <p className="text-xs text-slate-400 mb-0.5">Phone</p>
-                    <p className="text-slate-700 font-medium">{user.phone}</p>
+                    <p className="text-xs text-slate-400 mb-0.5">Role</p>
+                    <p className="text-slate-700 font-medium capitalize">{user.role}</p>
                   </div>
                 </div>
               </div>
@@ -183,28 +174,21 @@ const Profile = () => {
                     className="text-3xl font-bold text-red-600"
                     style={{ fontFamily: "'Poppins', sans-serif" }}
                   >
-                    {purchasedCourses.length}
+                    {purchasesLoading ? '...' : purchasedCourses.length}
                   </p>
                   <p className="text-sm text-slate-500">Courses</p>
                 </div>
-                <div className="text-center">
-                  <p
-                    className="text-3xl font-bold text-red-600"
-                    style={{ fontFamily: "'Poppins', sans-serif" }}
-                  >
-                    {purchasedNotes.length}
-                  </p>
-                  <p className="text-sm text-slate-500">Notes</p>
-                </div>
-                <div className="text-center">
-                  <p
-                    className="text-3xl font-bold text-red-600"
-                    style={{ fontFamily: "'Poppins', sans-serif" }}
-                  >
-                    {purchases.length}
-                  </p>
-                  <p className="text-sm text-slate-500">Total Purchases</p>
-                </div>
+              </div>
+
+              {/* Logout Button */}
+              <div className="mt-6 flex justify-center md:justify-start">
+                <button
+                  onClick={handleLogout}
+                  className="py-2.5 px-6 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm border border-red-600 text-red-600 hover:bg-red-50"
+                  style={{ fontFamily: "'Poppins', sans-serif" }}
+                >
+                  Logout
+                </button>
               </div>
             </div>
           </div>
@@ -225,7 +209,15 @@ const Profile = () => {
               Purchased Courses
             </h2>
 
-            {purchasedCourses.length === 0 ? (
+            {/* Loading State */}
+            {purchasesLoading && (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-red-600 mx-auto mb-4"></div>
+                <p className="text-slate-500">Loading your courses...</p>
+              </div>
+            )}
+
+            {!purchasesLoading && purchasedCourses.length === 0 ? (
               <div className="text-center py-12">
                 <div className="text-5xl mb-4">📚</div>
                 <h3
@@ -253,7 +245,7 @@ const Profile = () => {
               <div className="flex flex-col gap-4">
                 {purchasedCourses.map((course) => (
                   <div
-                    key={course.id}
+                    key={course.courseId}
                     className="rounded-xl p-5 border transition-all duration-300 hover:-translate-y-1 flex justify-between items-center"
                     style={{
                       background: 'linear-gradient(135deg, #fef2f2 0%, #fce7e7 100%)',
@@ -261,22 +253,31 @@ const Profile = () => {
                       boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
                     }}
                   >
-                    <div className="flex-1">
-                      <h3
-                        className="text-lg font-semibold text-slate-800 mb-1"
-                        style={{ fontFamily: "'Poppins', sans-serif" }}
-                      >
-                        {course.name}
-                      </h3>
-                      <p className="text-sm text-slate-500">
-                        Purchased on {course.date}
-                      </p>
-                      <p className="text-sm text-slate-600 font-medium mt-1">
-                        ${course.price.toFixed(2)}
-                      </p>
+                    <div className="flex items-center gap-4 flex-1">
+                      {course.courseImage && (
+                        <img 
+                          src={course.courseImage} 
+                          alt={course.title}
+                          className="w-20 h-16 object-cover rounded-lg"
+                        />
+                      )}
+                      <div>
+                        <h3
+                          className="text-lg font-semibold text-slate-800 mb-1"
+                          style={{ fontFamily: "'Poppins', sans-serif" }}
+                        >
+                          {course.title}
+                        </h3>
+                        <p className="text-sm text-slate-500">
+                          Instructor: {course.instructorName}
+                        </p>
+                        <p className="text-sm text-slate-500">
+                          Purchased on {new Date(course.dateOfPurchase).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                        </p>
+                      </div>
                     </div>
                     <Link
-                      to={`/course/${course.id}`}
+                      to={`/course/${course.courseId}`}
                       className="py-2.5 px-5 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white no-underline hover:-translate-y-0.5 flex-shrink-0"
                       style={{
                         background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
@@ -292,7 +293,7 @@ const Profile = () => {
             )}
           </div>
 
-          {/* Purchased Notes Box */}
+          {/* Placeholder for Notes - Coming Soon */}
           <div className="bg-white rounded-[15px] shadow-lg p-8">
             <h2
               className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-3"
@@ -305,71 +306,29 @@ const Profile = () => {
               Purchased Notes
             </h2>
 
-            {purchasedNotes.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-5xl mb-4">📝</div>
-                <h3
-                  className="text-xl font-semibold text-slate-800 mb-2"
-                  style={{ fontFamily: "'Poppins', sans-serif" }}
-                >
-                  No Notes Yet
-                </h3>
-                <p className="text-slate-500 mb-6">
-                  You haven't purchased any notes yet.
-                </p>
-                <Link
-                  to="/dashboard"
-                  className="inline-block text-white py-2.5 px-6 rounded-lg font-semibold cursor-pointer transition-all duration-300 hover:-translate-y-0.5 no-underline"
-                  style={{
-                    background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
-                    fontFamily: "'Poppins', sans-serif",
-                    boxShadow: '0 4px 15px rgba(220, 38, 38, 0.3)',
-                  }}
-                >
-                  Browse Notes
-                </Link>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                {purchasedNotes.map((note) => (
-                  <div
-                    key={note.id}
-                    className="rounded-xl p-5 border transition-all duration-300 hover:-translate-y-1 flex justify-between items-center"
-                    style={{
-                      background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-                      border: '1px solid #bbf7d0',
-                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-                    }}
-                  >
-                    <div className="flex-1">
-                      <h3
-                        className="text-lg font-semibold text-slate-800 mb-1"
-                        style={{ fontFamily: "'Poppins', sans-serif" }}
-                      >
-                        {note.name}
-                      </h3>
-                      <p className="text-sm text-slate-500">
-                        Purchased on {note.date}
-                      </p>
-                      <p className="text-sm text-slate-600 font-medium mt-1">
-                        ${note.price.toFixed(2)}
-                      </p>
-                    </div>
-                    <Link
-                      to={`/notes/${note.id}`}
-                      className="py-2.5 px-5 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white no-underline hover:-translate-y-0.5 flex-shrink-0"
-                      style={{
-                        background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-                        boxShadow: '0 4px 12px rgba(5, 150, 105, 0.2)',
-                        fontFamily: "'Poppins', sans-serif",
-                      }}
-                    >
-                      View Notes
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="text-center py-12">
+              <div className="text-5xl mb-4">📝</div>
+              <h3
+                className="text-xl font-semibold text-slate-800 mb-2"
+                style={{ fontFamily: "'Poppins', sans-serif" }}
+              >
+                No Notes Yet
+              </h3>
+              <p className="text-slate-500 mb-6">
+                You haven't purchased any notes yet.
+              </p>
+              <Link
+                to="/notes"
+                className="inline-block text-white py-2.5 px-6 rounded-lg font-semibold cursor-pointer transition-all duration-300 hover:-translate-y-0.5 no-underline"
+                style={{
+                  background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                  fontFamily: "'Poppins', sans-serif",
+                  boxShadow: '0 4px 15px rgba(220, 38, 38, 0.3)',
+                }}
+              >
+                Browse Notes
+              </Link>
+            </div>
           </div>
         </div>
       </main>
