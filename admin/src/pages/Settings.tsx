@@ -1,172 +1,173 @@
-import { useState } from "react";
-import {
-  Settings as SettingsIcon,
-  Database,
-  BarChart3,
-  Download,
-  Upload,
-  Trash2,
-  AlertTriangle,
-  CheckCircle,
-  Users,
-  BookOpen,
-  Video,
-  FileText,
-} from "lucide-react";
+import { BookOpen, Users, Video, FileText, Loader2, PlayCircle, TrendingUp, RefreshCw } from 'lucide-react';
+import { useDashboardStats } from '../hooks/useSettings';
 
-export default function Settings() {
-  const [isExporting, setIsExporting] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
+const Settings = () => {
+  const { data: stats, isLoading, error, refetch, isRefetching } = useDashboardStats();
 
-  const stats = [
-    { label: "Total Courses", value: 12, icon: BookOpen, color: "blue" },
-    { label: "Live Lectures", value: 8, icon: Video, color: "green" },
-    { label: "Recorded Lectures", value: 45, icon: Video, color: "purple" },
-    { label: "Study Notes", value: 32, icon: FileText, color: "orange" },
-    { label: "Total Students", value: 156, icon: Users, color: "pink" },
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-red-600" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-500 mb-4">Error loading dashboard stats</p>
+        <button
+          onClick={() => refetch()}
+          className="px-4 py-2 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  const statCards = [
+    {
+      title: 'Total Courses',
+      value: stats?.totalCourses || 0,
+      icon: BookOpen,
+      color: 'blue',
+      bgColor: 'bg-blue-100',
+      textColor: 'text-blue-600',
+    },
+    {
+      title: 'Total Students',
+      value: stats?.totalStudents || 0,
+      icon: Users,
+      color: 'green',
+      bgColor: 'bg-green-100',
+      textColor: 'text-green-600',
+    },
+    {
+      title: 'Live Lectures',
+      value: stats?.totalLiveLectures || 0,
+      icon: Video,
+      color: 'red',
+      bgColor: 'bg-red-100',
+      textColor: 'text-red-600',
+    },
+    {
+      title: 'Recorded Lectures',
+      value: stats?.totalRecordedLectures || 0,
+      icon: PlayCircle,
+      color: 'purple',
+      bgColor: 'bg-purple-100',
+      textColor: 'text-purple-600',
+    },
+    {
+      title: 'Study Notes',
+      value: stats?.totalStudyNotes || 0,
+      icon: FileText,
+      color: 'orange',
+      bgColor: 'bg-orange-100',
+      textColor: 'text-orange-600',
+    },
+    {
+      title: 'Total Revenue',
+      value: `₹${(stats?.totalRevenue || 0).toLocaleString('en-IN')}`,
+      icon: TrendingUp,
+      color: 'emerald',
+      bgColor: 'bg-emerald-100',
+      textColor: 'text-emerald-600',
+    },
   ];
 
-  const handleExport = () => {
-    setIsExporting(true);
-    setTimeout(() => {
-      setIsExporting(false);
-      alert("Data exported successfully!");
-    }, 2000);
-  };
-
-  const handleImport = () => {
-    setIsImporting(true);
-    setTimeout(() => {
-      setIsImporting(false);
-      alert("Data imported successfully!");
-    }, 2000);
-  };
-
-  const handleClearData = (type: string) => {
-    if (confirm(`Are you sure you want to clear all ${type}? This action cannot be undone.`)) {
-      alert(`${type} cleared successfully!`);
-    }
-  };
-
-  const handleDeleteAllData = () => {
-    if (
-      confirm(
-        "⚠️ DANGER: This will permanently delete ALL data including courses, lectures, notes, and student records. This action CANNOT be undone. Are you absolutely sure?"
-      )
-    ) {
-      if (confirm("This is your last chance to cancel. Type 'DELETE' to confirm.")) {
-        alert("All data has been deleted.");
-      }
-    }
-  };
-
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <SettingsIcon className="w-7 h-7" />
-          Settings
-        </h1>
-        <p className="text-gray-600 mt-1">Manage your admin panel settings</p>
-      </div>
-
-      {/* Statistics */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <BarChart3 className="w-5 h-5 text-blue-600" />
-          Dashboard Statistics
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {stats.map((stat, index) => (
-            <div
-              key={index}
-              className={`p-4 rounded-lg bg-${stat.color}-50 border border-${stat.color}-100`}
-              style={{
-                backgroundColor:
-                  stat.color === "blue"
-                    ? "#eff6ff"
-                    : stat.color === "green"
-                    ? "#f0fdf4"
-                    : stat.color === "purple"
-                    ? "#faf5ff"
-                    : stat.color === "orange"
-                    ? "#fff7ed"
-                    : "#fdf2f8",
-              }}
-            >
-              <div className="flex items-center gap-3">
-                <stat.icon
-                  className="w-8 h-8"
-                  style={{
-                    color:
-                      stat.color === "blue"
-                        ? "#2563eb"
-                        : stat.color === "green"
-                        ? "#16a34a"
-                        : stat.color === "purple"
-                        ? "#9333ea"
-                        : stat.color === "orange"
-                        ? "#ea580c"
-                        : "#db2777",
-                  }}
-                />
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                  <p className="text-sm text-gray-600">{stat.label}</p>
-                </div>
-              </div>
-            </div>
-          ))}
+    <div>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-black bg-gradient-to-r from-red-600 to-red-500 bg-clip-text text-transparent mb-2">
+            Dashboard & Settings
+          </h1>
+          <p className="text-slate-500">Overview of your platform statistics</p>
         </div>
-      </div>
-
-   
-
-    
-
-      {/* Danger Zone */}
-      <div className="bg-red-50 rounded-xl border border-red-200 p-6">
-        <h2 className="text-lg font-semibold mb-2 text-red-700 flex items-center gap-2">
-          <AlertTriangle className="w-5 h-5" />
-          Danger Zone
-        </h2>
-        <p className="text-sm text-red-600 mb-4">
-          These actions are irreversible. Please proceed with extreme caution.
-        </p>
         <button
-          onClick={handleDeleteAllData}
-          className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+          onClick={() => refetch()}
+          disabled={isRefetching}
+          className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-semibold hover:bg-slate-200 transition-all duration-300 disabled:opacity-50"
         >
-          <Trash2 className="w-4 h-4" />
-          Delete All Data
+          <RefreshCw className={`w-4 h-4 ${isRefetching ? 'animate-spin' : ''}`} />
+          Refresh
         </button>
       </div>
 
-      {/* System Info */}
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-        <h3 className="font-medium text-gray-700 mb-2 flex items-center gap-2">
-          <CheckCircle className="w-4 h-4 text-green-600" />
-          System Status
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-          <div>
-            <span className="text-gray-500">Version:</span>
-            <span className="ml-2 font-medium">1.0.0</span>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        {statCards.map((stat) => (
+          <div
+            key={stat.title}
+            className="bg-white rounded-2xl p-6 shadow-md border border-slate-200 hover:shadow-lg transition-all duration-300"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className={`w-14 h-14 ${stat.bgColor} rounded-xl flex items-center justify-center`}>
+                <stat.icon className={`w-7 h-7 ${stat.textColor}`} />
+              </div>
+            </div>
+            <p className="text-slate-500 text-sm font-medium mb-1">{stat.title}</p>
+            <p className={`text-3xl font-black ${stat.textColor}`}>{stat.value}</p>
           </div>
-          <div>
-            <span className="text-gray-500">Last Backup:</span>
-            <span className="ml-2 font-medium">Today, 10:30 AM</span>
+        ))}
+      </div>
+
+      <div className="bg-white rounded-2xl p-6 shadow-md border border-slate-200">
+        <h2 className="text-lg font-bold text-slate-800 mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <a
+            href="/courses"
+            className="flex items-center gap-3 p-4 bg-blue-50 rounded-xl hover:bg-blue-100 transition-all duration-300"
+          >
+            <BookOpen className="w-5 h-5 text-blue-600" />
+            <span className="font-semibold text-blue-800">Manage Courses</span>
+          </a>
+          <a
+            href="/live-lectures"
+            className="flex items-center gap-3 p-4 bg-red-50 rounded-xl hover:bg-red-100 transition-all duration-300"
+          >
+            <Video className="w-5 h-5 text-red-600" />
+            <span className="font-semibold text-red-800">Schedule Live Lecture</span>
+          </a>
+          <a
+            href="/recorded"
+            className="flex items-center gap-3 p-4 bg-purple-50 rounded-xl hover:bg-purple-100 transition-all duration-300"
+          >
+            <PlayCircle className="w-5 h-5 text-purple-600" />
+            <span className="font-semibold text-purple-800">Add Recorded Lecture</span>
+          </a>
+          <a
+            href="/notes"
+            className="flex items-center gap-3 p-4 bg-orange-50 rounded-xl hover:bg-orange-100 transition-all duration-300"
+          >
+            <FileText className="w-5 h-5 text-orange-600" />
+            <span className="font-semibold text-orange-800">Upload Study Notes</span>
+          </a>
+        </div>
+      </div>
+
+      <div className="mt-6 bg-white rounded-2xl p-6 shadow-md border border-slate-200">
+        <h2 className="text-lg font-bold text-slate-800 mb-4">Platform Information</h2>
+        <div className="space-y-3 text-slate-600">
+          <div className="flex items-center justify-between py-2 border-b border-slate-100">
+            <span>Platform Version</span>
+            <span className="font-semibold text-slate-800">1.0.0</span>
           </div>
-          <div>
-            <span className="text-gray-500">Database:</span>
-            <span className="ml-2 font-medium text-green-600">Connected</span>
+          <div className="flex items-center justify-between py-2 border-b border-slate-100">
+            <span>Last Updated</span>
+            <span className="font-semibold text-slate-800">{new Date().toLocaleDateString('en-IN')}</span>
           </div>
-          <div>
-            <span className="text-gray-500">Storage:</span>
-            <span className="ml-2 font-medium">45% used</span>
+          <div className="flex items-center justify-between py-2">
+            <span>Support</span>
+            <a href="mailto:support@becs.edu.in" className="font-semibold text-red-600 hover:text-red-700">
+              support@becs.edu.in
+            </a>
           </div>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default Settings;

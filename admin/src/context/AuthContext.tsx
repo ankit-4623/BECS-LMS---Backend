@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import authService, { User } from '../services/auth.service';
+import axios from 'axios';
+import authService, { type User } from '../services/auth.service';
 
 interface AuthContextType {
   user: User | null;
@@ -12,6 +13,12 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const clearAuth = () => {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('user');
+  delete axios.defaults.headers.common['Authorization'];
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -19,26 +26,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const checkAuth = async () => {
     try {
       const token = localStorage.getItem('accessToken');
+      const storedUser = localStorage.getItem('user');
+
       if (!token) {
-        setIsLoading(false);
+        clearAuth();
         return;
       }
-      
+
+      // Attach token globally
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+      // Restore user instantly (prevents UI flicker)
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+      }
+
       const response = await authService.checkAuth();
-      if (response.success && response.data.user) {
-        // Only allow instructors and admins to access admin panel
-        if (response.data.user.role === 'instructor' || response.data.user.role === 'admin') {
-          setUser(response.data.user);
-        } else {
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('user');
-          setUser(null);
-        }
+
+      if (response.success && response.data.user?.role === 'admin') {
+        setUser(response.data.user);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      } else {
+        clearAuth();
+        setUser(null);
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('user');
+      clearAuth();
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -50,21 +64,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const response = await authService.login({ userEmail: email, password });
-    
-    if (response.success) {
-      const { accessToken, user: userData } = response.data;
-      
-      // Check if user has instructor/admin role
-      if (userData.role !== 'instructor' && userData.role !== 'admin') {
-        throw new Error('Access denied. Only instructors and admins can access this panel.');
+    try {
+      const response = await authService.login({
+        userEmail: email,
+        password,
+      });
+
+      if (!response.success) {
+        throw new Error(response.message || 'Login failed');
       }
-      
+
+      const { accessToken, user: userData } = response.data;
+
+      if (userData.role !== 'admin') {
+        throw new Error('Access denied. Only admins can access this panel.');
+      }
+
       localStorage.setItem('accessToken', accessToken);
       localStorage.setItem('user', JSON.stringify(userData));
+
+      axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+
       setUser(userData);
-    } else {
-      throw new Error(response.message || 'Login failed');
+    } catch (error: any) {
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+      throw error;
     }
   };
 
@@ -74,8 +100,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error('Logout API error:', error);
     } finally {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('user');
+      clearAuth();
       setUser(null);
     }
   };
@@ -84,21 +109,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     <AuthContext.Provider
       value={{
         user,
-        isAuthenticated: !!user,
+        isAuthenticated: !!localStorage.getItem('accessToken'),
         isLoading,
         login,
         logout,
         checkAuth,
       }}
     >
-      {children}
+      {!isLoading && children}
     </AuthContext.Provider>
   );
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;

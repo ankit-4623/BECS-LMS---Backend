@@ -1,236 +1,350 @@
-import { useState } from "react";
-import { Plus, Edit2, Trash2, FileText, ExternalLink } from "lucide-react";
+import { useState } from 'react';
+import { Plus, FileText, Edit2, Trash2, X, Loader2, ExternalLink, BookOpen } from 'lucide-react';
+import { useCourses } from '../hooks/useCourses';
+import { useStudyNotes, useCreateStudyNote, useUpdateStudyNote, useDeleteStudyNote } from '../hooks/useStudyNotes';
+import { studyNoteFormSchema, type StudyNote } from '../lib/schemas';
 
-interface StudyNote {
-  id: number;
-  chapterName: string;
-  lectureTitle: string;
-  lectureNumber: number;
-  driveLink: string;
-}
+const Notes = () => {
+  const { data: courses = [], isLoading: coursesLoading } = useCourses();
+  const { data: notes = [], isLoading: notesLoading } = useStudyNotes();
+  const createNote = useCreateStudyNote();
+  const updateNote = useUpdateStudyNote();
+  const deleteNote = useDeleteStudyNote();
 
-export default function Notes() {
-  const [notes, setNotes] = useState<StudyNote[]>([
-    {
-      id: 1,
-      chapterName: "Introduction to React",
-      lectureTitle: "What is React?",
-      lectureNumber: 1,
-      driveLink: "https://drive.google.com/file/d/example1",
-    },
-    {
-      id: 2,
-      chapterName: "Introduction to React",
-      lectureTitle: "Components and Props",
-      lectureNumber: 2,
-      driveLink: "https://drive.google.com/file/d/example2",
-    },
-  ]);
-
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editingNote, setEditingNote] = useState<StudyNote | null>(null);
   const [formData, setFormData] = useState({
-    chapterName: "",
-    lectureTitle: "",
-    lectureNumber: 1,
-    driveLink: "",
+    courseId: '',
+    title: '',
+    description: '',
+    chapterName: '',
+    lectureNumber: '1',
+    driveLink: '',
+    isPublished: false,
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingId) {
-      setNotes(
-        notes.map((note) =>
-          note.id === editingId ? { ...formData, id: editingId } : note
-        )
-      );
-      setEditingId(null);
-    } else {
-      setNotes([...notes, { ...formData, id: Date.now() }]);
+  const resetForm = () => {
+    setFormData({
+      courseId: '',
+      title: '',
+      description: '',
+      chapterName: '',
+      lectureNumber: '1',
+      driveLink: '',
+      isPublished: false,
+    });
+    setErrors({});
+    setEditingNote(null);
+    setShowForm(false);
+  };
+
+  const validateForm = () => {
+    const dataToValidate = {
+      courseId: formData.courseId,
+      title: formData.title,
+      description: formData.description,
+      chapterName: formData.chapterName,
+      lectureNumber: Number(formData.lectureNumber) || 1,
+      driveLink: formData.driveLink,
+      isPublished: formData.isPublished,
+    };
+
+    const result = studyNoteFormSchema.safeParse(dataToValidate);
+
+    if (!result.success) {
+      const newErrors: Record<string, string> = {};
+      result.error.issues.forEach((issue) => {
+        const path = issue.path.join('.');
+        newErrors[path] = issue.message;
+      });
+      setErrors(newErrors);
+      return false;
     }
-    setFormData({ chapterName: "", lectureTitle: "", lectureNumber: 1, driveLink: "" });
-    setIsFormOpen(false);
+
+    setErrors({});
+    return true;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    const payload = {
+      courseId: formData.courseId,
+      title: formData.title,
+      description: formData.description,
+      chapterName: formData.chapterName,
+      lectureNumber: Number(formData.lectureNumber) || 1,
+      driveLink: formData.driveLink,
+      isPublished: formData.isPublished,
+    };
+
+    try {
+      if (editingNote) {
+        await updateNote.mutateAsync({ id: editingNote._id, data: payload });
+      } else {
+        await createNote.mutateAsync(payload);
+      }
+      resetForm();
+    } catch (err) {
+      console.error('Error saving note:', err);
+    }
   };
 
   const handleEdit = (note: StudyNote) => {
+    setEditingNote(note);
     setFormData({
-      chapterName: note.chapterName,
-      lectureTitle: note.lectureTitle,
-      lectureNumber: note.lectureNumber,
-      driveLink: note.driveLink,
+      courseId: note.courseId || '',
+      title: note.title || '',
+      description: note.description || '',
+      chapterName: note.chapterName || '',
+      lectureNumber: String(note.lectureNumber || 1),
+      driveLink: note.driveLink || '',
+      isPublished: note.isPublished || false,
     });
-    setEditingId(note.id);
-    setIsFormOpen(true);
+    setShowForm(true);
   };
 
-  const handleDelete = (id: number) => {
-    if (confirm("Are you sure you want to delete this note?")) {
-      setNotes(notes.filter((note) => note.id !== id));
+  const handleDelete = async (id: string) => {
+    if (confirm('Are you sure you want to delete this study note?')) {
+      try {
+        await deleteNote.mutateAsync(id);
+      } catch (err) {
+        console.error('Error deleting note:', err);
+      }
     }
   };
 
-  const handleCancel = () => {
-    setFormData({ chapterName: "", lectureTitle: "", lectureNumber: 1, driveLink: "" });
-    setEditingId(null);
-    setIsFormOpen(false);
+  const getCourseName = (courseId: string) => {
+    const course = courses.find(c => c._id === courseId);
+    return course?.title || 'Unknown Course';
   };
 
+  if (coursesLoading || notesLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-red-600" />
+      </div>
+    );
+  }
+
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Study Notes</h1>
-          <p className="text-gray-600 mt-1">Manage Google Drive notes links</p>
-        </div>
-        <button
-          onClick={() => setIsFormOpen(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Add Notes
-        </button>
+    <div>
+      <div className="mb-8">
+        <h1 className="text-3xl font-black bg-gradient-to-r from-red-600 to-red-500 bg-clip-text text-transparent mb-2">
+          Study Notes
+        </h1>
+        <p className="text-slate-500">Manage study materials and Google Drive links</p>
       </div>
 
-      {/* Form */}
-      {isFormOpen && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold mb-4">
-            {editingId ? "Edit Notes" : "Add New Notes"}
-          </h2>
+      <div className="bg-white rounded-2xl p-6 shadow-md border border-slate-200 mb-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+              <FileText className="w-6 h-6 text-red-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-800">
+                {editingNote ? 'Edit Study Note' : 'Add Study Note'}
+              </h2>
+              <p className="text-sm text-slate-500">Upload Google Drive links for study materials</p>
+            </div>
+          </div>
+          {!showForm && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all duration-300 hover:-translate-y-0.5 shadow-lg shadow-red-600/20"
+            >
+              <Plus className="w-5 h-5" />
+              Add Note
+            </button>
+          )}
+        </div>
+
+        {showForm && (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Chapter Name
-                </label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Course</label>
+                <select
+                  value={formData.courseId}
+                  onChange={(e) => setFormData({ ...formData, courseId: e.target.value })}
+                  className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-300 focus:outline-none bg-white ${
+                    errors.courseId ? 'border-red-500' : 'border-slate-200 focus:border-red-500'
+                  }`}
+                >
+                  <option value="">-- Select Course --</option>
+                  {courses.map((course) => (
+                    <option key={course._id} value={course._id}>{course.title}</option>
+                  ))}
+                </select>
+                {errors.courseId && <p className="text-red-500 text-sm mt-1">{errors.courseId}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Title</label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-300 focus:outline-none ${
+                    errors.title ? 'border-red-500' : 'border-slate-200 focus:border-red-500'
+                  }`}
+                  placeholder="Enter note title"
+                />
+                {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Chapter Name</label>
                 <input
                   type="text"
                   value={formData.chapterName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, chapterName: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter chapter name"
-                  required
+                  onChange={(e) => setFormData({ ...formData, chapterName: e.target.value })}
+                  className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-300 focus:outline-none ${
+                    errors.chapterName ? 'border-red-500' : 'border-slate-200 focus:border-red-500'
+                  }`}
+                  placeholder="e.g., Chapter 1: Introduction"
                 />
+                {errors.chapterName && <p className="text-red-500 text-sm mt-1">{errors.chapterName}</p>}
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Lecture Title
-                </label>
-                <input
-                  type="text"
-                  value={formData.lectureTitle}
-                  onChange={(e) =>
-                    setFormData({ ...formData, lectureTitle: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter lecture title"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Lecture Number
-                </label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Lecture Number</label>
                 <input
                   type="number"
                   value={formData.lectureNumber}
-                  onChange={(e) =>
-                    setFormData({ ...formData, lectureNumber: parseInt(e.target.value) || 1 })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onChange={(e) => setFormData({ ...formData, lectureNumber: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition-all duration-300 focus:outline-none focus:border-red-500"
                   min="1"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Google Drive Link
-                </label>
-                <input
-                  type="url"
-                  value={formData.driveLink}
-                  onChange={(e) =>
-                    setFormData({ ...formData, driveLink: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="https://drive.google.com/file/d/..."
-                  required
                 />
               </div>
             </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Google Drive Link</label>
+              <input
+                type="url"
+                value={formData.driveLink}
+                onChange={(e) => setFormData({ ...formData, driveLink: e.target.value })}
+                className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-300 focus:outline-none ${
+                  errors.driveLink ? 'border-red-500' : 'border-slate-200 focus:border-red-500'
+                }`}
+                placeholder="https://drive.google.com/..."
+              />
+              {errors.driveLink && <p className="text-red-500 text-sm mt-1">{errors.driveLink}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Description (Optional)</label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={2}
+                className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition-all duration-300 focus:outline-none focus:border-red-500"
+                placeholder="Brief description of the study material..."
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="isPublished"
+                checked={formData.isPublished}
+                onChange={(e) => setFormData({ ...formData, isPublished: e.target.checked })}
+                className="w-4 h-4 text-red-600 border-slate-300 rounded focus:ring-red-500"
+              />
+              <label htmlFor="isPublished" className="text-sm font-medium text-slate-700">
+                Publish this note
+              </label>
+            </div>
+
             <div className="flex gap-3">
               <button
                 type="submit"
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                disabled={createNote.isPending || updateNote.isPending}
+                className="px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                {editingId ? "Update Notes" : "Add Notes"}
+                {(createNote.isPending || updateNote.isPending) && <Loader2 className="w-4 h-4 animate-spin" />}
+                {editingNote ? 'Update Note' : 'Add Note'}
               </button>
               <button
                 type="button"
-                onClick={handleCancel}
-                className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition-colors"
+                onClick={resetForm}
+                className="px-6 py-3 bg-slate-100 text-slate-700 rounded-xl font-semibold hover:bg-slate-200 transition-all duration-300 flex items-center gap-2"
               >
+                <X className="w-4 h-4" />
                 Cancel
               </button>
             </div>
           </form>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Notes List */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-blue-600" />
-            All Study Notes ({notes.length})
-          </h2>
-        </div>
+      <div className="bg-white rounded-2xl p-6 shadow-md border border-slate-200">
+        <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <FileText className="w-5 h-5 text-red-600" />
+          Study Notes ({notes.length})
+        </h2>
+
         {notes.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-            <p>No study notes added yet</p>
+          <div className="text-center py-12 text-slate-500">
+            <FileText className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+            <p>No study notes yet. Add your first note!</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
-            {notes.map((note) => (
+          <div className="space-y-3">
+            {notes.map((note: StudyNote) => (
               <div
-                key={note.id}
-                className="p-4 flex items-center justify-between hover:bg-gray-50"
+                key={note._id}
+                className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200 hover:bg-slate-100 transition-all duration-300"
               >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                    <FileText className="w-5 h-5 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">
-                      Lecture {note.lectureNumber}: {note.lectureTitle}
-                    </p>
-                    <p className="text-sm text-gray-500">{note.chapterName}</p>
-                    <a
-                      href={note.driveLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                      Open in Google Drive
-                    </a>
-                  </div>
+                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-6 h-6 text-blue-600" />
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-semibold text-slate-800 truncate">{note.title}</h3>
+                    {note.isPublished && (
+                      <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full flex-shrink-0">Published</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4 text-sm text-slate-500">
+                    <span className="flex items-center gap-1">
+                      <BookOpen className="w-4 h-4" />
+                      {getCourseName(note.courseId)}
+                    </span>
+                    <span>{note.chapterName} • Lecture {note.lectureNumber}</span>
+                  </div>
+                  {note.description && (
+                    <p className="text-sm text-slate-500 mt-1 truncate">{note.description}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <a
+                    href={note.driveLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-300"
+                    title="Open in Google Drive"
+                  >
+                    <ExternalLink className="w-5 h-5" />
+                  </a>
                   <button
                     onClick={() => handleEdit(note)}
-                    className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    className="p-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-all duration-300"
                   >
-                    <Edit2 className="w-4 h-4" />
+                    <Edit2 className="w-5 h-5" />
                   </button>
                   <button
-                    onClick={() => handleDelete(note.id)}
-                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    onClick={() => handleDelete(note._id)}
+                    disabled={deleteNote.isPending}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-300 disabled:opacity-50"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-5 h-5" />
                   </button>
                 </div>
               </div>
@@ -240,4 +354,6 @@ export default function Notes() {
       </div>
     </div>
   );
-}
+};
+
+export default Notes;

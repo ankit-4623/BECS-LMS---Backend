@@ -1,61 +1,5 @@
 import api from './api';
-
-export interface Curriculum {
-  _id?: string;
-  title: string;
-  videoUrl: string;
-  notesUrl?: string;
-  freePreview: boolean;
-}
-
-export interface Course {
-  _id: string;
-  instructorId: string;
-  instructorName: string;
-  date: string;
-  title: string;
-  category: string;
-  level: string;
-  primaryLanguage: string;
-  subtitle: string;
-  description: string;
-  image: string;
-  welcomeMessage: string;
-  pricing: number;
-  objectives: string;
-  students: Array<{ studentId: string; studentName: string; studentEmail: string; paidAmount: number }>;
-  curriculum: Curriculum[];
-  isPublished: boolean;
-  teachers?: {
-    teacherName: string;
-    teacherImage: string;
-    teacherBio: string;
-  };
-  totalDuration?: string;
-  lastUpdated?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface CourseFormData {
-  title: string;
-  category: string;
-  level: string;
-  primaryLanguage: string;
-  subtitle: string;
-  description: string;
-  welcomeMessage: string;
-  pricing: number;
-  objectives: string;
-  curriculum: Curriculum[];
-  isPublished: boolean;
-  image?: File;
-  teachers?: {
-    teacherName: string;
-    teacherImage: string;
-    teacherBio: string;
-  };
-}
+import type { Course, CourseFormData } from '../lib/schemas';
 
 export interface CourseResponse {
   success: boolean;
@@ -102,4 +46,5 @@ export const courseService = {
   },
 };
 
+export type { Course, CourseFormData };
 export default courseService;

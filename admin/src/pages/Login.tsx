@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Shield } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -15,10 +15,11 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   // Redirect if already authenticated
-  if (isAuthenticated) {
-    navigate('/dashboard');
-    return null;
-  }
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard/courses');
+    }
+  }, [isAuthenticated, navigate]);
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -41,16 +42,20 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
-
+    if (!validateForm()){
+      alert("Please fix the errors in the form before submitting.");
+      return};
+    
     setIsLoading(true);
     setErrors({});
     
     try {
       await login(formData.email, formData.password);
-      navigate('/dashboard');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Login failed. Please try again.';
+      alert('Login successful! Redirecting to dashboard...');
+      navigate('/dashboard/courses');
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Login failed. Please try again.';
+      alert(errorMessage);
       setErrors({ general: errorMessage });
     } finally {
       setIsLoading(false);

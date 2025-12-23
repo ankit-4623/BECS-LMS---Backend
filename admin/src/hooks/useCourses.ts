@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import courseService, { Course } from '../services/course.service';
+import courseService from '../services/course.service';
+import type { Course } from '../lib/schemas';
 
 // Hook to get all courses
 export const useCourses = () => {

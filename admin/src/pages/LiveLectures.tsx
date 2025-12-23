@@ -1,96 +1,88 @@
 import { useState } from 'react';
-import { Plus, Video, Trash2, Calendar, Clock, User, BookOpen } from 'lucide-react';
-
-interface Course {
-  id: string;
-  name: string;
-}
-
-interface LiveLecture {
-  id: string;
-  courseName: string;
-  duration: string;
-  date: string;
-  time: string;
-  teacherName: string;
-  meetLink: string;
-}
+import { Plus, Video, Trash2, Calendar, Clock, User, BookOpen, Loader2, ExternalLink } from 'lucide-react';
+import { useCourses } from '../hooks/useCourses';
+import { useLiveLectures, useCreateLiveLecture, useDeleteLiveLecture } from '../hooks/useLiveLectures';
+import { liveLectureFormSchema, type LiveLecture } from '../lib/schemas';
 
 const LiveLectures = () => {
-  // Mock courses - in real app, this would come from API/context
-  const [courses] = useState<Course[]>([
-    { id: '1', name: 'Complete Electronics' },
-    { id: '2', name: 'Digital Logic Design' },
-    { id: '3', name: 'Microprocessors' },
-    { id: '4', name: 'Signal Processing' },
-  ]);
-
-  const [lectures, setLectures] = useState<LiveLecture[]>([
-    {
-      id: '1',
-      courseName: 'Complete Electronics',
-      duration: '2 hours',
-      date: '2025-12-20',
-      time: '10:00',
-      teacherName: 'Dr. Sharma',
-      meetLink: 'https://meet.google.com/abc-defg-hij',
-    },
-  ]);
+  const { data: courses = [], isLoading: coursesLoading } = useCourses();
+  const { data: lectures = [], isLoading: lecturesLoading } = useLiveLectures();
+  const createLiveLecture = useCreateLiveLecture();
+  const deleteLiveLecture = useDeleteLiveLecture();
 
   const [formData, setFormData] = useState({
-    courseName: '',
-    duration: '',
-    date: '',
-    time: '',
-    teacherName: '',
-    meetLink: '',
+    courseId: '',
+    title: '',
+    description: '',
+    scheduledAt: '',
+    duration: '60',
+    meetingLink: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-    if (!formData.courseName.trim()) newErrors.courseName = 'Course name is required';
-    if (!formData.duration.trim()) newErrors.duration = 'Duration is required';
-    if (!formData.date) newErrors.date = 'Date is required';
-    if (!formData.time) newErrors.time = 'Time is required';
-    if (!formData.teacherName.trim()) newErrors.teacherName = 'Teacher name is required';
-    if (!formData.meetLink.trim()) {
-      newErrors.meetLink = 'Meet link is required';
-    } else if (!formData.meetLink.match(/^https?:\/\/.+/)) {
-      newErrors.meetLink = 'Please enter a valid URL';
+    const dataToValidate = {
+      courseId: formData.courseId,
+      title: formData.title,
+      description: formData.description,
+      scheduledAt: formData.scheduledAt,
+      duration: Number(formData.duration) || 60,
+      meetingLink: formData.meetingLink,
+    };
+
+    const result = liveLectureFormSchema.safeParse(dataToValidate);
+    
+    if (!result.success) {
+      const newErrors: Record<string, string> = {};
+      result.error.issues.forEach((issue) => {
+        const path = issue.path.join('.');
+        newErrors[path] = issue.message;
+      });
+      setErrors(newErrors);
+      return false;
     }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+
+    setErrors({});
+    return true;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validateForm()) return;
 
-    setIsSaving(true);
-    setTimeout(() => {
-      const newLecture: LiveLecture = {
-        id: Date.now().toString(),
-        ...formData,
-      };
-      setLectures([...lectures, newLecture]);
-      setFormData({
-        courseName: '',
-        duration: '',
-        date: '',
-        time: '',
-        teacherName: '',
-        meetLink: '',
+    try {
+      await createLiveLecture.mutateAsync({
+        courseId: formData.courseId,
+        title: formData.title,
+        description: formData.description,
+        scheduledAt: formData.scheduledAt,
+        duration: Number(formData.duration) || 60,
+        meetingLink: formData.meetingLink,
       });
-      setIsSaving(false);
+      
+      setFormData({
+        courseId: '',
+        title: '',
+        description: '',
+        scheduledAt: '',
+        duration: '60',
+        meetingLink: '',
+      });
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
-    }, 1000);
+    } catch (err) {
+      console.error('Error creating live lecture:', err);
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setLectures(lectures.filter((lecture) => lecture.id !== id));
+  const handleDelete = async (id: string) => {
+    if (confirm('Are you sure you want to delete this live lecture?')) {
+      try {
+        await deleteLiveLecture.mutateAsync(id);
+      } catch (err) {
+        console.error('Error deleting live lecture:', err);
+      }
+    }
   };
 
   const formatDate = (dateStr: string) => {
@@ -103,13 +95,35 @@ const LiveLectures = () => {
     });
   };
 
-  const formatTime = (timeStr: string) => {
-    const [hours, minutes] = timeStr.split(':');
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const hour12 = hour % 12 || 12;
-    return `${hour12}:${minutes} ${ampm}`;
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
+
+  const getCourseName = (courseId: string) => {
+    const course = courses.find(c => c._id === courseId);
+    return course?.title || 'Unknown Course';
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'live': return 'bg-red-100 text-red-700';
+      case 'completed': return 'bg-green-100 text-green-700';
+      case 'cancelled': return 'bg-gray-100 text-gray-700';
+      default: return 'bg-blue-100 text-blue-700';
+    }
+  };
+
+  if (coursesLoading || lecturesLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-red-600" />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -120,16 +134,14 @@ const LiveLectures = () => {
         <p className="text-slate-500">Schedule and manage live lecture sessions</p>
       </div>
 
-      {/* Success Toast */}
       {showSuccess && (
-        <div className="fixed bottom-6 right-6 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 animate-slideUp z-50">
+        <div className="fixed bottom-6 right-6 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 z-50">
           <span className="text-lg">✓</span>
           Live lecture scheduled successfully!
         </div>
       )}
 
-      {/* Add Live Lecture Form */}
-      <div className="bg-white rounded-2xl p-6 shadow-md border border-slate-200">
+      <div className="bg-white rounded-2xl p-6 shadow-md border border-slate-200 mb-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
             <Plus className="w-6 h-6 text-red-600" />
@@ -142,153 +154,161 @@ const LiveLectures = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Course Name</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Course</label>
             <select
-              value={formData.courseName}
-              onChange={(e) => setFormData({ ...formData, courseName: e.target.value })}
+              value={formData.courseId}
+              onChange={(e) => setFormData({ ...formData, courseId: e.target.value })}
               className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-300 focus:outline-none bg-white ${
-                errors.courseName ? 'border-red-500' : 'border-slate-200 focus:border-red-500'
+                errors.courseId ? 'border-red-500' : 'border-slate-200 focus:border-red-500'
               }`}
             >
               <option value="">-- Select Course --</option>
               {courses.map((course) => (
-                <option key={course.id} value={course.name}>
-                  {course.name}
-                </option>
+                <option key={course._id} value={course._id}>{course.title}</option>
               ))}
             </select>
-            {errors.courseName && <p className="text-red-500 text-sm mt-1">{errors.courseName}</p>}
+            {errors.courseId && <p className="text-red-500 text-sm mt-1">{errors.courseId}</p>}
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Teacher Name</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Title</label>
             <input
               type="text"
-              value={formData.teacherName}
-              onChange={(e) => setFormData({ ...formData, teacherName: e.target.value })}
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-300 focus:outline-none ${
-                errors.teacherName ? 'border-red-500' : 'border-slate-200 focus:border-red-500'
+                errors.title ? 'border-red-500' : 'border-slate-200 focus:border-red-500'
               }`}
-              placeholder="Enter teacher name"
+              placeholder="Enter lecture title"
             />
-            {errors.teacherName && <p className="text-red-500 text-sm mt-1">{errors.teacherName}</p>}
+            {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Duration</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Duration (minutes)</label>
             <input
-              type="text"
+              type="number"
               value={formData.duration}
               onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-              className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-300 focus:outline-none ${
-                errors.duration ? 'border-red-500' : 'border-slate-200 focus:border-red-500'
-              }`}
-              placeholder="e.g., 2 hours"
+              className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition-all duration-300 focus:outline-none focus:border-red-500"
+              placeholder="60"
+              min="1"
             />
-            {errors.duration && <p className="text-red-500 text-sm mt-1">{errors.duration}</p>}
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Date</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Schedule Date & Time</label>
             <input
-              type="date"
-              value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              type="datetime-local"
+              value={formData.scheduledAt}
+              onChange={(e) => setFormData({ ...formData, scheduledAt: e.target.value })}
               className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-300 focus:outline-none ${
-                errors.date ? 'border-red-500' : 'border-slate-200 focus:border-red-500'
+                errors.scheduledAt ? 'border-red-500' : 'border-slate-200 focus:border-red-500'
               }`}
             />
-            {errors.date && <p className="text-red-500 text-sm mt-1">{errors.date}</p>}
+            {errors.scheduledAt && <p className="text-red-500 text-sm mt-1">{errors.scheduledAt}</p>}
           </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Time</label>
-            <input
-              type="time"
-              value={formData.time}
-              onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-              className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-300 focus:outline-none ${
-                errors.time ? 'border-red-500' : 'border-slate-200 focus:border-red-500'
-              }`}
-            />
-            {errors.time && <p className="text-red-500 text-sm mt-1">{errors.time}</p>}
-          </div>
-
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-sm font-semibold text-slate-700 mb-2">Google Meet Link</label>
             <input
               type="url"
-              value={formData.meetLink}
-              onChange={(e) => setFormData({ ...formData, meetLink: e.target.value })}
+              value={formData.meetingLink}
+              onChange={(e) => setFormData({ ...formData, meetingLink: e.target.value })}
               className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-300 focus:outline-none ${
-                errors.meetLink ? 'border-red-500' : 'border-slate-200 focus:border-red-500'
+                errors.meetingLink ? 'border-red-500' : 'border-slate-200 focus:border-red-500'
               }`}
-              placeholder="https://meet.google.com/abc-defg-hij"
+              placeholder="https://meet.google.com/xxx-xxxx-xxx"
             />
-            {errors.meetLink && <p className="text-red-500 text-sm mt-1">{errors.meetLink}</p>}
+            {errors.meetingLink && <p className="text-red-500 text-sm mt-1">{errors.meetingLink}</p>}
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Description (Optional)</label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={2}
+              className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition-all duration-300 focus:outline-none focus:border-red-500"
+              placeholder="Brief description of the lecture..."
+            />
           </div>
         </div>
 
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="mt-6 flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Plus className="w-5 h-5" />
-          {isSaving ? 'Scheduling...' : 'Schedule Lecture'}
-        </button>
+        <div className="mt-6">
+          <button
+            onClick={handleSave}
+            disabled={createLiveLecture.isPending}
+            className="px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {createLiveLecture.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+            Schedule Lecture
+          </button>
+        </div>
       </div>
 
-      {/* Scheduled Lectures */}
-      <div className="bg-white rounded-2xl p-6 shadow-md border border-slate-200 mt-6">
-        <h2 className="text-lg font-bold text-slate-800 mb-4">Scheduled Live Lectures</h2>
-        
+      <div className="bg-white rounded-2xl p-6 shadow-md border border-slate-200">
+        <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <Video className="w-5 h-5 text-red-600" />
+          Scheduled Lectures ({lectures.length})
+        </h2>
+
         {lectures.length === 0 ? (
-          <div className="text-center py-8 text-slate-500">
-            <div className="text-4xl mb-3 opacity-50">🎥</div>
+          <div className="text-center py-12 text-slate-500">
+            <Video className="w-12 h-12 mx-auto mb-3 text-slate-300" />
             <p>No live lectures scheduled yet</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {lectures.map((lecture) => (
+            {lectures.map((lecture: LiveLecture) => (
               <div
-                key={lecture.id}
-                className="p-4 bg-slate-50 rounded-xl border border-slate-200"
+                key={lecture._id}
+                className="p-4 bg-slate-50 rounded-xl border border-slate-200 hover:bg-slate-100 transition-all duration-300"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <h3 className="font-bold text-lg text-slate-800">{lecture.courseName}</h3>
-                    <div className="mt-2 space-y-1">
-                      <p className="text-sm text-slate-600 flex items-center gap-2">
-                        <User className="w-4 h-4 text-slate-400" />
-                        {lecture.teacherName}
-                      </p>
-                      <p className="text-sm text-slate-600 flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-slate-400" />
-                        {formatDate(lecture.date)}
-                      </p>
-                      <p className="text-sm text-slate-600 flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-slate-400" />
-                        {formatTime(lecture.time)} • {lecture.duration}
-                      </p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="font-semibold text-slate-800">{lecture.title}</h3>
+                      <span className={`px-2 py-0.5 text-xs rounded-full ${getStatusColor(lecture.status)}`}>
+                        {lecture.status}
+                      </span>
                     </div>
+                    <div className="flex flex-wrap gap-4 text-sm text-slate-500">
+                      <span className="flex items-center gap-1">
+                        <BookOpen className="w-4 h-4" />
+                        {getCourseName(lecture.courseId)}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        {formatDate(lecture.scheduledAt)}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-4 h-4" />
+                        {formatTime(lecture.scheduledAt)} ({lecture.duration} min)
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <User className="w-4 h-4" />
+                        {lecture.instructorName}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <a
-                      href={lecture.meetLink}
+                      href={lecture.meetingLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-3 inline-flex items-center gap-2 text-sm text-red-600 hover:text-red-700 font-medium"
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-300"
                     >
-                      <Video className="w-4 h-4" />
-                      Join Meeting
+                      <ExternalLink className="w-5 h-5" />
                     </a>
+                    <button
+                      onClick={() => handleDelete(lecture._id)}
+                      disabled={deleteLiveLecture.isPending}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-300 disabled:opacity-50"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => handleDelete(lecture.id)}
-                    className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
-                    title="Delete lecture"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
                 </div>
               </div>
             ))}

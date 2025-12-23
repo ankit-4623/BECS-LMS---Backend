@@ -6,6 +6,9 @@ const authRoutes = require("./routes/auth-routes/index");
 const mediaRoutes = require("./routes/instructor-routes/media-routes");
 const instructorCourseRoutes = require("./routes/instructor-routes/course-routes");
 const instructorLiveLectureRoutes = require("./routes/instructor-routes/live-lecture-routes");
+const instructorStudyNoteRoutes = require("./routes/instructor-routes/study-note-routes");
+const instructorRecordedLectureRoutes = require("./routes/instructor-routes/recorded-lecture-routes");
+const instructorSettingsRoutes = require("./routes/instructor-routes/settings-routes");
 const studentViewCourseRoutes = require("./routes/student-routes/course-routes");
 const studentViewOrderRoutes = require("./routes/student-routes/order-routes");
 const studentCoursesRoutes = require("./routes/student-routes/student-courses-routes");
@@ -51,8 +54,12 @@ mongoose
 
 //routes configuration
 app.use("/auth", authRoutes);
+app.use("/instructor/media", mediaRoutes);
 app.use("/instructor/course", instructorCourseRoutes);
 app.use("/instructor/live-lecture", instructorLiveLectureRoutes);
+app.use("/instructor/study-note", instructorStudyNoteRoutes);
+app.use("/instructor/recorded-lecture", instructorRecordedLectureRoutes);
+app.use("/instructor/settings", instructorSettingsRoutes);
 app.use("/student/course", studentViewCourseRoutes);
 app.use("/student/order", studentViewOrderRoutes);
 app.use("/student/courses-bought", studentCoursesRoutes);

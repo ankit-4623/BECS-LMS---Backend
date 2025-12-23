@@ -35,11 +35,14 @@ const CourseSchema = new mongoose.Schema({
   subtitle: String,
   description: String,
   image: {
-    type: String,
-    required: true,
-    public_id: String,
-    url: String,
+    url: {
+      type: String,
+      required: true,
     },
+    public_id: {
+      type: String,
+    },
+  },
   welcomeMessage: String,
   pricing: Number,
   objectives: String,
@@ -55,12 +58,16 @@ const CourseSchema = new mongoose.Schema({
     },
   ],
   teachers: {
+    teacherId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
     teacherName: String,
     degree: String,
     experience: String,
   },
   curriculum: [LectureSchema],
-  isPublised: {
+  isPublished: {
     type: Boolean,
     default: false
   },

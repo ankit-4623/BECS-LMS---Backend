@@ -7,6 +7,25 @@ const addNewCourse = async (req, res) => {
   try {
     const courseData = req.body;
     
+    // Parse teachers if it's a JSON string (from FormData)
+    if (typeof courseData.teachers === 'string') {
+      try {
+        courseData.teachers = JSON.parse(courseData.teachers);
+      } catch (parseErr) {
+        courseData.teachers = {};
+      }
+    }
+    
+    // Parse isPublished if it's a string
+    if (typeof courseData.isPublished === 'string') {
+      courseData.isPublished = courseData.isPublished === 'true';
+    }
+    
+    // Parse pricing if it's a string
+    if (typeof courseData.pricing === 'string') {
+      courseData.pricing = Number(courseData.pricing) || 0;
+    }
+    
     // Handle image upload if file is present
     if (req.file) {
       try {

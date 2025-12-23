@@ -1,14 +1,26 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import liveLectureService, { LiveLecture, LiveLectureFormData } from '../services/live-lecture.service';
+import liveLectureService from '../services/live-lecture.service';
+import type { LiveLecture, LiveLectureFormData } from '../lib/schemas';
+
+// Hook to get all live lectures
+export const useLiveLectures = () => {
+  return useQuery({
+    queryKey: ['live-lectures'],
+    queryFn: async () => {
+      const response = await liveLectureService.getAllLiveLectures();
+      return response.data;
+    },
+  });
+};
 
 // Hook to get live lectures by course ID
-export const useLiveLectures = (courseId: string | undefined) => {
+export const useLiveLecturesByCourse = (courseId: string | undefined) => {
   return useQuery({
-    queryKey: ['live-lectures', courseId],
+    queryKey: ['live-lectures', 'course', courseId],
     queryFn: async () => {
       if (!courseId) throw new Error('Course ID is required');
       const response = await liveLectureService.getLiveLecturesByCourse(courseId);
-      return Array.isArray(response.data) ? response.data : [response.data];
+      return response.data;
     },
     enabled: !!courseId,
   });
@@ -20,8 +32,34 @@ export const useCreateLiveLecture = () => {
   
   return useMutation({
     mutationFn: (data: LiveLectureFormData) => liveLectureService.createLiveLecture(data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['live-lectures', variables.courseId] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['live-lectures'] });
+    },
+  });
+};
+
+// Hook to update a live lecture
+export const useUpdateLiveLecture = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<LiveLectureFormData> }) => 
+      liveLectureService.updateLiveLecture(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['live-lectures'] });
+    },
+  });
+};
+
+// Hook to update live lecture status
+export const useUpdateLiveLectureStatus = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) => 
+      liveLectureService.updateLiveLectureStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['live-lectures'] });
     },
   });
 };
@@ -31,10 +69,9 @@ export const useDeleteLiveLecture = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ id, courseId }: { id: string; courseId: string }) => 
-      liveLectureService.deleteLiveLecture(id),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['live-lectures', variables.courseId] });
+    mutationFn: (id: string) => liveLectureService.deleteLiveLecture(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['live-lectures'] });
     },
   });
 };
