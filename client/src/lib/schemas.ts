@@ -106,7 +106,10 @@ export const courseSchema = z.object({
   primaryLanguage: z.string().optional(),
   subtitle: z.string().optional(),
   description: z.string().optional(),
-  image: z.string(),
+  image: z.object({
+    url: z.string(),
+    public_id: z.string().optional(),
+  }).optional(),
   welcomeMessage: z.string().optional(),
   pricing: z.number(),
   objectives: z.string().optional(),

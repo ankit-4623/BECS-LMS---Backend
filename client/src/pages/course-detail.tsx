@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useCourse, useCheckPurchase, useLiveLecture } from '../hooks/useCourses';
 import { useAuth } from '../context/AuthContext';
+import { useCreateOrder, useVerifyPayment } from '../hooks/useOrder';
+import '../types/razorpay.d.ts';
 
 const CourseDetail = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -10,15 +12,20 @@ const CourseDetail = () => {
   const [scrolled, setScrolled] = useState(false);
   const [activeTab, setActiveTab] = useState<'videos' | 'live'>('videos');
   const [_selectedVideo, _setSelectedVideo] = useState<string | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+  // Hooks for order/payment
+  const createOrderMutation = useCreateOrder();
+  const verifyPaymentMutation = useVerifyPayment();
 
   // Fetch course details from API
-  const { data: course, isLoading, error } = useCourse(courseId || '');
+  const { data: course, isLoading, error, refetch: refetchCourse } = useCourse(courseId || '');
   
   // Fetch live lecture for this course
   const { data: liveLecture } = useLiveLecture(courseId || '');
   
   // Check if user has purchased this course
-  const { data: isPurchased } = useCheckPurchase(courseId || '', user?._id);
+  const { data: isPurchased, refetch: refetchPurchase } = useCheckPurchase(courseId || '', user?._id);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -28,14 +35,107 @@ const CourseDetail = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const handlePurchase = () => {
+  // Load Razorpay script
+  const loadRazorpayScript = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handlePurchase = async () => {
     if (!isAuthenticated) {
       alert('Please login to purchase this course');
       navigate('/login');
       return;
     }
-    // Navigate to order/payment page
-    alert('Redirecting to payment... (Payment integration needed)');
+
+    if (!courseId) {
+      alert('Course ID not found');
+      return;
+    }
+
+    setIsProcessingPayment(true);
+
+    try {
+      // Load Razorpay script
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        alert('Failed to load payment gateway. Please try again.');
+        setIsProcessingPayment(false);
+        return;
+      }
+
+      // Create order
+      const orderResponse = await createOrderMutation.mutateAsync({ courseId });
+      
+      if (!orderResponse.success || !orderResponse.data) {
+        alert('Failed to create order. Please try again.');
+        setIsProcessingPayment(false);
+        return;
+      }
+
+      const { razorpayOrderId, amount, currency, keyId } = orderResponse.data;
+
+      // Open Razorpay checkout
+      const options = {
+        key: keyId,
+        amount: amount,
+        currency: currency,
+        name: 'BECS E-Learning',
+        description: `Payment for ${course?.title || 'Course'}`,
+        order_id: razorpayOrderId,
+        handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
+          try {
+            // Verify payment
+            const verifyResponse = await verifyPaymentMutation.mutateAsync({
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+
+            if (verifyResponse.success) {
+              alert('Payment successful! You now have access to this course.');
+              // Refresh course and purchase status
+              refetchCourse();
+              refetchPurchase();
+            } else {
+              alert('Payment verification failed. Please contact support.');
+            }
+          } catch (error) {
+            console.error('Payment verification error:', error);
+            alert('Payment verification failed. Please contact support.');
+          }
+          setIsProcessingPayment(false);
+        },
+        prefill: {
+          name: user?.userName || '',
+          email: user?.userEmail || '',
+        },
+        theme: {
+          color: '#dc2626',
+        },
+        modal: {
+          ondismiss: () => {
+            setIsProcessingPayment(false);
+          },
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
+    } catch (error) {
+      console.error('Payment error:', error);
+      alert('Failed to initiate payment. Please try again.');
+      setIsProcessingPayment(false);
+    }
   };
 
   if (isLoading) {
@@ -93,7 +193,7 @@ const CourseDetail = () => {
         {/* Course Header */}
         <div className="bg-white rounded-[15px] shadow-lg overflow-hidden mb-8">
           <div className="relative h-[200px]">
-            <img src={course.image || 'https://images.unsplash.com/photo-1516321318423-f06f70d504f0?w=800&h=400&fit=crop'} alt={course.title} className="w-full h-full object-cover" />
+            <img src={course.image?.url || 'https://images.unsplash.com/photo-1516321318423-f06f70d504f0?w=800&h=400&fit=crop'} alt={course.title} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
             <div className="absolute bottom-6 left-6 right-6 text-white">
               <h1 className="text-3xl font-bold mb-2" style={{ fontFamily: "'Poppins', sans-serif" }}>{course.title}</h1>
@@ -117,10 +217,11 @@ const CourseDetail = () => {
             </div>
             <button
               onClick={handlePurchase}
-              className="py-3 px-8 rounded-lg font-semibold text-white transition-all duration-300 hover:-translate-y-0.5"
+              disabled={isProcessingPayment}
+              className={`py-3 px-8 rounded-lg font-semibold text-white transition-all duration-300 ${isProcessingPayment ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5'}`}
               style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 15px rgba(220, 38, 38, 0.3)' }}
             >
-              Buy Now - ₹{course.pricing || 0}
+              {isProcessingPayment ? 'Processing...' : `Buy Now - ₹${course.pricing || 0}`}
             </button>
           </div>
         )}
@@ -194,10 +295,11 @@ const CourseDetail = () => {
                         ) : (
                           <button
                             onClick={handlePurchase}
-                            className="py-2 px-4 rounded-lg font-semibold text-sm text-center transition-all duration-300 flex items-center gap-2 text-white opacity-70 cursor-pointer"
+                            disabled={isProcessingPayment}
+                            className={`py-2 px-4 rounded-lg font-semibold text-sm text-center transition-all duration-300 flex items-center gap-2 text-white ${isProcessingPayment ? 'opacity-50 cursor-not-allowed' : 'opacity-70 cursor-pointer hover:opacity-100'}`}
                             style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)' }}
                           >
-                            🔒 Unlock
+                            🔒 {isProcessingPayment ? 'Processing...' : 'Unlock'}
                           </button>
                         )}
                       </div>
@@ -245,10 +347,11 @@ const CourseDetail = () => {
                   <p className="text-slate-600 mb-4">Purchase this course to access live classes.</p>
                   <button
                     onClick={handlePurchase}
-                    className="py-3 px-8 rounded-lg font-semibold text-white transition-all duration-300 hover:-translate-y-0.5"
+                    disabled={isProcessingPayment}
+                    className={`py-3 px-8 rounded-lg font-semibold text-white transition-all duration-300 ${isProcessingPayment ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5'}`}
                     style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 15px rgba(220, 38, 38, 0.3)' }}
                   >
-                    Buy Now - ₹{course.pricing || 0}
+                    {isProcessingPayment ? 'Processing...' : `Buy Now - ₹${course.pricing || 0}`}
                   </button>
                 </div>
               )

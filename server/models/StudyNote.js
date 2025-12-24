@@ -4,7 +4,7 @@ const StudyNoteSchema = new mongoose.Schema({
   courseId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Course",
-    required: true,
+    required: false, // Made optional for independent notes
   },
   title: {
     type: String,
@@ -17,7 +17,6 @@ const StudyNoteSchema = new mongoose.Schema({
   },
   chapterName: {
     type: String,
-    required: true,
     trim: true,
   },
   lectureNumber: {
@@ -37,6 +36,45 @@ const StudyNoteSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  // New fields for independent purchasable notes
+  isIndependent: {
+    type: Boolean,
+    default: false, // true = can be purchased without a course
+  },
+  pricing: {
+    type: Number,
+    default: 0, // 0 means free
+  },
+  category: {
+    type: String,
+    trim: true,
+  },
+  level: {
+    type: String,
+    enum: ['Beginner', 'Intermediate', 'Advanced', ''],
+    default: '',
+  },
+  image: {
+    url: {
+      type: String,
+    },
+    public_id: {
+      type: String,
+    },
+  },
+  purchasedBy: [{
+    studentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    studentName: String,
+    studentEmail: String,
+    paidAmount: Number,
+    purchaseDate: {
+      type: Date,
+      default: Date.now,
+    },
+  }],
 }, { timestamps: true });
 
 module.exports = mongoose.model("StudyNote", StudyNoteSchema);

@@ -2,6 +2,7 @@ const razorpay = require("../../helpers/razorpay");
 const Order = require("../../models/Order");
 const Course = require("../../models/Course");
 const StudentCourses = require("../../models/StudentCourses");
+const User = require("../../models/User");
 const crypto = require('crypto');
 
 const createOrder = async (req, res) => {
@@ -18,9 +19,18 @@ const createOrder = async (req, res) => {
             });
         }
 
+        // Get user details
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
         // Create Razorpay Order
         const options = {
-            amount: Math.round(course.price * 100), // Razorpay expects amount in paise
+            amount: Math.round(course.pricing * 100), // Razorpay expects amount in paise
             currency: "INR",
             receipt: `order_rcptid_${Date.now()}`
         };
@@ -28,14 +38,22 @@ const createOrder = async (req, res) => {
         try {
             const razorpayOrder = await razorpay.orders.create(options);
             
-            // Create order in our database
+            // Create order in our database with all required fields
             const order = await Order.create({
                 userId: userId,
+                userName: user.userName,
+                userEmail: user.userEmail,
                 courseId: courseId,
+                courseTitle: course.title,
+                courseImage: course.image?.url || '',
+                coursePricing: course.pricing,
+                instructorId: course.teachers?.teacherId,
+                instructorName: course.teachers?.teacherName,
                 razorpayOrderId: razorpayOrder.id,
-                amount: course.price,
+                amount: course.pricing,
                 currency: 'INR',
-                status: 'pending'
+                status: 'pending',
+                orderDate: new Date()
             });
 
             res.status(200).json({

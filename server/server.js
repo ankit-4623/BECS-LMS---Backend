@@ -13,6 +13,7 @@ const studentViewCourseRoutes = require("./routes/student-routes/course-routes")
 const studentViewOrderRoutes = require("./routes/student-routes/order-routes");
 const studentCoursesRoutes = require("./routes/student-routes/student-courses-routes");
 const studentCourseProgressRoutes = require("./routes/student-routes/course-progress-routes");
+const studentNoteRoutes = require("./routes/student-routes/note-routes");
 
 const app = express();
 const PORT = process.env.PORT ;
@@ -21,9 +22,7 @@ const MONGO_URI = process.env.MONGODB_URI;
 // CORS configuration
 const allowedOrigins = [
   process.env.CLIENT_URL,
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://127.0.0.1:5173',
+  process.env.ADMIN_URL,
 ];
 
 app.use(
@@ -64,6 +63,7 @@ app.use("/student/course", studentViewCourseRoutes);
 app.use("/student/order", studentViewOrderRoutes);
 app.use("/student/courses-bought", studentCoursesRoutes);
 app.use("/student/course-progress", studentCourseProgressRoutes);
+app.use("/student/notes", studentNoteRoutes);
 
 app.use((err, req, res, next) => {
   console.log(err.stack);

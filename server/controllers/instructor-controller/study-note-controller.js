@@ -4,16 +4,30 @@ const Course = require("../../models/Course");
 // Create a new study note
 const createStudyNote = async (req, res) => {
     try {
-        const { courseId, title, description, chapterName, lectureNumber, driveLink } = req.body;
+        const { 
+            courseId, 
+            title, 
+            description, 
+            chapterName, 
+            lectureNumber, 
+            driveLink,
+            isIndependent,
+            pricing,
+            category,
+            level,
+            image
+        } = req.body;
         const instructorId = req.user._id;
 
-        // Verify course exists
-        const course = await Course.findById(courseId);
-        if (!course) {
-            return res.status(404).json({
-                success: false,
-                message: "Course not found"
-            });
+        // If note is linked to a course, verify course exists
+        if (courseId && !isIndependent) {
+            const course = await Course.findById(courseId);
+            if (!course) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Course not found"
+                });
+            }
         }
 
         // Validate Google Drive link format
@@ -26,13 +40,18 @@ const createStudyNote = async (req, res) => {
         }
 
         const newStudyNote = new StudyNote({
-            courseId,
+            courseId: isIndependent ? null : courseId,
             title,
             description,
-            chapterName,
-            lectureNumber,
+            chapterName: chapterName || '',
+            lectureNumber: lectureNumber || 1,
             driveLink,
-            instructorId
+            instructorId,
+            isIndependent: isIndependent || false,
+            pricing: pricing || 0,
+            category: category || '',
+            level: level || '',
+            image: image || null,
         });
 
         await newStudyNote.save();

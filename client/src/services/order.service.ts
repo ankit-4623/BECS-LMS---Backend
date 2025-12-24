@@ -7,7 +7,8 @@ export interface CreateOrderResponse {
   orderId: string;
   amount: number;
   currency: string;
-  razorpayOrderId?: string;
+  razorpayOrderId: string;
+  keyId: string;
 }
 
 export interface VerifyPaymentResponse {
@@ -15,17 +16,9 @@ export interface VerifyPaymentResponse {
   message: string;
 }
 
-// Create order
+// Create order - backend handles fetching user and course details
 export const createOrder = async (data: {
-  userId: string;
-  userName: string;
-  userEmail: string;
   courseId: string;
-  courseTitle: string;
-  coursePricing: number;
-  courseImage?: string;
-  instructorId?: string;
-  instructorName?: string;
 }): Promise<ApiResponse<CreateOrderResponse>> => {
   const response = await api.post<ApiResponse<CreateOrderResponse>>(
     '/student/order/create',
@@ -36,10 +29,9 @@ export const createOrder = async (data: {
 
 // Verify payment (Razorpay)
 export const verifyPayment = async (data: {
-  razorpay_order_id: string;
-  razorpay_payment_id: string;
-  razorpay_signature: string;
-  orderId: string;
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
 }): Promise<ApiResponse<VerifyPaymentResponse>> => {
   const response = await api.post<ApiResponse<VerifyPaymentResponse>>(
     '/student/order/verify',

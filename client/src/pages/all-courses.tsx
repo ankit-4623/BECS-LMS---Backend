@@ -134,7 +134,7 @@ const AllCourses = () => {
               <div key={course._id} className="bg-white rounded-xl overflow-hidden transition-all duration-300 border border-slate-200 hover:-translate-y-2 hover:shadow-xl hover:border-red-600" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}>
                 <div className="relative">
                   <img 
-                    src={course.image || 'https://images.unsplash.com/photo-1516321318423-f06f70d504f0?w=400&h=300&fit=crop'} 
+                    src={course.image?.url || 'https://images.unsplash.com/photo-1516321318423-f06f70d504f0?w=400&h=300&fit=crop'} 
                     alt={course.title} 
                     className="w-full h-[180px] object-cover" 
                     style={{ background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)' }} 

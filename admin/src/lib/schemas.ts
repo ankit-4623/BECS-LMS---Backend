@@ -99,20 +99,36 @@ export const recordedLectureSchema = recordedLectureFormSchema.extend({
 
 // Study Note schemas
 export const studyNoteFormSchema = z.object({
-  courseId: z.string().min(1, 'Course is required'),
+  courseId: z.string().optional(), // Made optional for independent notes
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
-  chapterName: z.string().min(1, 'Chapter name is required'),
+  chapterName: z.string().optional(), // Made optional for independent notes
   lectureNumber: z.number().min(1, 'Lecture number must be at least 1').default(1),
   driveLink: z.string()
     .min(1, 'Google Drive link is required')
     .regex(/^https:\/\/(drive\.google\.com|docs\.google\.com)\/.+/i, 'Invalid Google Drive link format'),
+  isPublished: z.boolean().default(false),
+  isIndependent: z.boolean().default(false),
+  pricing: z.number().min(0, 'Price must be 0 or more').default(0),
+  category: z.string().optional(),
+  level: z.enum(['Beginner', 'Intermediate', 'Advanced', '']).default(''),
 });
 
 export const studyNoteSchema = studyNoteFormSchema.extend({
   _id: z.string(),
   instructorId: z.string(),
   isPublished: z.boolean().default(true),
+  image: z.object({
+    url: z.string(),
+    public_id: z.string(),
+  }).optional().nullable(),
+  purchasedBy: z.array(z.object({
+    studentId: z.string(),
+    studentName: z.string().optional(),
+    studentEmail: z.string().optional(),
+    paidAmount: z.number().optional(),
+    purchaseDate: z.string().optional(),
+  })).optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
 });

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, FileText, Edit2, Trash2, X, Loader2, ExternalLink, BookOpen } from 'lucide-react';
+import { Plus, FileText, Edit2, Trash2, X, Loader2, ExternalLink, BookOpen, DollarSign } from 'lucide-react';
 import { useCourses } from '../hooks/useCourses';
 import { useStudyNotes, useCreateStudyNote, useUpdateStudyNote, useDeleteStudyNote } from '../hooks/useStudyNotes';
 import { studyNoteFormSchema, type StudyNote } from '../lib/schemas';
@@ -21,6 +21,10 @@ const Notes = () => {
     lectureNumber: '1',
     driveLink: '',
     isPublished: false,
+    isIndependent: false,
+    pricing: '0',
+    category: '',
+    level: '' as '' | 'Beginner' | 'Intermediate' | 'Advanced',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -33,6 +37,10 @@ const Notes = () => {
       lectureNumber: '1',
       driveLink: '',
       isPublished: false,
+      isIndependent: false,
+      pricing: '0',
+      category: '',
+      level: '',
     });
     setErrors({});
     setEditingNote(null);
@@ -41,13 +49,16 @@ const Notes = () => {
 
   const validateForm = () => {
     const dataToValidate = {
-      courseId: formData.courseId,
+      courseId: formData.isIndependent ? undefined : formData.courseId,
       title: formData.title,
       description: formData.description,
-      chapterName: formData.chapterName,
+      chapterName: formData.isIndependent ? undefined : formData.chapterName,
       lectureNumber: Number(formData.lectureNumber) || 1,
       driveLink: formData.driveLink,
-      isPublished: formData.isPublished,
+      isIndependent: formData.isIndependent,
+      pricing: Number(formData.pricing) || 0,
+      category: formData.category,
+      level: formData.level,
     };
 
     const result = studyNoteFormSchema.safeParse(dataToValidate);
@@ -62,6 +73,12 @@ const Notes = () => {
       return false;
     }
 
+    // Additional validation for non-independent notes
+    if (!formData.isIndependent && !formData.courseId) {
+      setErrors({ courseId: 'Course is required for course-linked notes' });
+      return false;
+    }
+
     setErrors({});
     return true;
   };
@@ -71,13 +88,17 @@ const Notes = () => {
     if (!validateForm()) return;
 
     const payload = {
-      courseId: formData.courseId,
+      courseId: formData.isIndependent ? undefined : formData.courseId,
       title: formData.title,
       description: formData.description,
-      chapterName: formData.chapterName,
+      chapterName: formData.isIndependent ? '' : formData.chapterName,
       lectureNumber: Number(formData.lectureNumber) || 1,
       driveLink: formData.driveLink,
       isPublished: formData.isPublished,
+      isIndependent: formData.isIndependent,
+      pricing: Number(formData.pricing) || 0,
+      category: formData.category,
+      level: formData.level,
     };
 
     try {
@@ -102,6 +123,10 @@ const Notes = () => {
       lectureNumber: String(note.lectureNumber || 1),
       driveLink: note.driveLink || '',
       isPublished: note.isPublished || false,
+      isIndependent: note.isIndependent || false,
+      pricing: String(note.pricing || 0),
+      category: note.category || '',
+      level: (note.level as '' | 'Beginner' | 'Intermediate' | 'Advanced') || '',
     });
     setShowForm(true);
   };
@@ -164,25 +189,46 @@ const Notes = () => {
 
         {showForm && (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Course</label>
-                <select
-                  value={formData.courseId}
-                  onChange={(e) => setFormData({ ...formData, courseId: e.target.value })}
-                  className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-300 focus:outline-none bg-white ${
-                    errors.courseId ? 'border-red-500' : 'border-slate-200 focus:border-red-500'
-                  }`}
-                >
-                  <option value="">-- Select Course --</option>
-                  {courses.map((course) => (
-                    <option key={course._id} value={course._id}>{course.title}</option>
-                  ))}
-                </select>
-                {errors.courseId && <p className="text-red-500 text-sm mt-1">{errors.courseId}</p>}
+            {/* Independent Note Toggle */}
+            <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="isIndependent"
+                  checked={formData.isIndependent}
+                  onChange={(e) => setFormData({ ...formData, isIndependent: e.target.checked, courseId: '' })}
+                  className="w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="isIndependent" className="text-sm font-semibold text-slate-700">
+                  <span className="text-blue-600">Independent Note</span> - Can be purchased without a course
+                </label>
               </div>
+              <p className="text-xs text-slate-500 mt-2 ml-8">
+                Enable this to sell this note separately. Students can buy it without enrolling in any course.
+              </p>
+            </div>
 
-              <div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {!formData.isIndependent && (
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Course</label>
+                  <select
+                    value={formData.courseId}
+                    onChange={(e) => setFormData({ ...formData, courseId: e.target.value })}
+                    className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-300 focus:outline-none bg-white ${
+                      errors.courseId ? 'border-red-500' : 'border-slate-200 focus:border-red-500'
+                    }`}
+                  >
+                    <option value="">-- Select Course --</option>
+                    {courses.map((course) => (
+                      <option key={course._id} value={course._id}>{course.title}</option>
+                    ))}
+                  </select>
+                  {errors.courseId && <p className="text-red-500 text-sm mt-1">{errors.courseId}</p>}
+                </div>
+              )}
+
+              <div className={formData.isIndependent ? 'md:col-span-2' : ''}>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Title</label>
                 <input
                   type="text"
@@ -197,32 +243,79 @@ const Notes = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Chapter Name</label>
-                <input
-                  type="text"
-                  value={formData.chapterName}
-                  onChange={(e) => setFormData({ ...formData, chapterName: e.target.value })}
-                  className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-300 focus:outline-none ${
-                    errors.chapterName ? 'border-red-500' : 'border-slate-200 focus:border-red-500'
-                  }`}
-                  placeholder="e.g., Chapter 1: Introduction"
-                />
-                {errors.chapterName && <p className="text-red-500 text-sm mt-1">{errors.chapterName}</p>}
+            {/* Independent note specific fields */}
+            {formData.isIndependent && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    <DollarSign className="w-4 h-4 inline mr-1" />
+                    Price (₹)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.pricing}
+                    onChange={(e) => setFormData({ ...formData, pricing: e.target.value })}
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition-all duration-300 focus:outline-none focus:border-red-500"
+                    min="0"
+                    placeholder="0 for free"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Set 0 for free notes</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Category</label>
+                  <input
+                    type="text"
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition-all duration-300 focus:outline-none focus:border-red-500"
+                    placeholder="e.g., Physics, Math"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Level</label>
+                  <select
+                    value={formData.level}
+                    onChange={(e) => setFormData({ ...formData, level: e.target.value as '' | 'Beginner' | 'Intermediate' | 'Advanced' })}
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition-all duration-300 focus:outline-none focus:border-red-500 bg-white"
+                  >
+                    <option value="">Select Level</option>
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                  </select>
+                </div>
               </div>
+            )}
 
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Lecture Number</label>
-                <input
-                  type="number"
-                  value={formData.lectureNumber}
-                  onChange={(e) => setFormData({ ...formData, lectureNumber: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition-all duration-300 focus:outline-none focus:border-red-500"
-                  min="1"
-                />
+            {/* Chapter/Lecture fields - only for course-linked notes */}
+            {!formData.isIndependent && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Chapter Name</label>
+                  <input
+                    type="text"
+                    value={formData.chapterName}
+                    onChange={(e) => setFormData({ ...formData, chapterName: e.target.value })}
+                    className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-300 focus:outline-none ${
+                      errors.chapterName ? 'border-red-500' : 'border-slate-200 focus:border-red-500'
+                    }`}
+                    placeholder="e.g., Chapter 1: Introduction"
+                  />
+                  {errors.chapterName && <p className="text-red-500 text-sm mt-1">{errors.chapterName}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Lecture Number</label>
+                  <input
+                    type="number"
+                    value={formData.lectureNumber}
+                    onChange={(e) => setFormData({ ...formData, lectureNumber: e.target.value })}
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition-all duration-300 focus:outline-none focus:border-red-500"
+                    min="1"
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Google Drive Link</label>
@@ -302,22 +395,43 @@ const Notes = () => {
                 key={note._id}
                 className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200 hover:bg-slate-100 transition-all duration-300"
               >
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <FileText className="w-6 h-6 text-blue-600" />
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${note.isIndependent ? 'bg-purple-100' : 'bg-blue-100'}`}>
+                  <FileText className={`w-6 h-6 ${note.isIndependent ? 'text-purple-600' : 'text-blue-600'}`} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <h3 className="font-semibold text-slate-800 truncate">{note.title}</h3>
+                    {note.isIndependent && (
+                      <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full flex-shrink-0">Independent</span>
+                    )}
+                    {note.isIndependent && note.pricing > 0 && (
+                      <span className="px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded-full flex-shrink-0">₹{note.pricing}</span>
+                    )}
+                    {note.isIndependent && note.pricing === 0 && (
+                      <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full flex-shrink-0">Free</span>
+                    )}
                     {note.isPublished && (
                       <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full flex-shrink-0">Published</span>
                     )}
                   </div>
                   <div className="flex items-center gap-4 text-sm text-slate-500">
-                    <span className="flex items-center gap-1">
-                      <BookOpen className="w-4 h-4" />
-                      {getCourseName(note.courseId)}
-                    </span>
-                    <span>{note.chapterName} • Lecture {note.lectureNumber}</span>
+                    {note.isIndependent ? (
+                      <>
+                        {note.category && <span className="flex items-center gap-1">📁 {note.category}</span>}
+                        {note.level && <span className="flex items-center gap-1">📊 {note.level}</span>}
+                        {note.purchasedBy && note.purchasedBy.length > 0 && (
+                          <span className="flex items-center gap-1">👥 {note.purchasedBy.length} purchased</span>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex items-center gap-1">
+                          <BookOpen className="w-4 h-4" />
+                          {getCourseName(note.courseId || '')}
+                        </span>
+                        <span>{note.chapterName} • Lecture {note.lectureNumber}</span>
+                      </>
+                    )}
                   </div>
                   {note.description && (
                     <p className="text-sm text-slate-500 mt-1 truncate">{note.description}</p>
