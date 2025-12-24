@@ -116,9 +116,17 @@ const Recorded = () => {
     }
   };
 
-  const getCourseName = (courseId: string) => {
-    const course = courses.find(c => c._id === courseId);
-    return course?.title || 'Unknown Course';
+  const getCourseName = (courseId: string | { _id: string; title: string } | null) => {
+    // Handle populated courseId object from MongoDB
+    if (courseId && typeof courseId === 'object' && 'title' in courseId) {
+      return courseId.title;
+    }
+    // Handle string courseId
+    if (typeof courseId === 'string') {
+      const course = courses.find(c => c._id === courseId);
+      return course?.title || 'Unknown Course';
+    }
+    return 'Unknown Course';
   };
 
   const getYouTubeEmbedUrl = (url: string) => {

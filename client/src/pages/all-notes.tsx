@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAllNotes } from '../hooks/useCourses';
 import { useIndependentNotes, useCreateNoteOrder, useVerifyNotePayment, usePurchasedNotes } from '../hooks/useNotes';
 import { useAuth } from '../context/AuthContext';
 import '../types/razorpay.d.ts';
@@ -8,8 +7,7 @@ import '../types/razorpay.d.ts';
 const AllNotes = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
-  const { data: courseNotes, isLoading: courseNotesLoading, error: courseNotesError } = useAllNotes();
-  const { data: independentNotes = [], isLoading: independentNotesLoading, error: independentNotesError } = useIndependentNotes();
+  const { data: independentNotes = [], isLoading: notesLoading, error: notesError } = useIndependentNotes();
   const { data: purchasedNotes = [] } = usePurchasedNotes(user?._id);
   
   const createNoteOrderMutation = useCreateNoteOrder();
@@ -19,7 +17,6 @@ const AllNotes = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [levelFilter, setLevelFilter] = useState('all');
-  const [noteType, setNoteType] = useState<'all' | 'independent' | 'course'>('all');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   useEffect(() => {
@@ -136,11 +133,8 @@ const AllNotes = () => {
     }
   };
 
-  // Combine and format notes
-  const allNotes = [
-    ...(courseNotes || []).map(note => ({ ...note, isIndependent: false, pricing: 0 })),
-    ...(independentNotes || []).map(note => ({ ...note, isIndependent: true })),
-  ];
+  // Only independent notes
+  const allNotes = (independentNotes || []).map(note => ({ ...note, isIndependent: true }));
 
   // Get unique categories and levels for filters
   const categories = [...new Set(allNotes.map(note => note.category).filter(Boolean))] as string[];
@@ -148,13 +142,10 @@ const AllNotes = () => {
 
   const filteredNotes = allNotes.filter((note) => {
     const matchesSearch = note.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         (note.courseTitle?.toLowerCase().includes(searchQuery.toLowerCase()));
+                         (note.description?.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesCategory = categoryFilter === 'all' || note.category === categoryFilter;
     const matchesLevel = levelFilter === 'all' || note.level === levelFilter;
-    const matchesType = noteType === 'all' || 
-                       (noteType === 'independent' && note.isIndependent) || 
-                       (noteType === 'course' && !note.isIndependent);
-    return matchesSearch && matchesCategory && matchesLevel && matchesType;
+    return matchesSearch && matchesCategory && matchesLevel;
   });
 
   return (
@@ -193,14 +184,6 @@ const AllNotes = () => {
             </svg>
           </div>
           <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2">
-              <span className="text-slate-500 text-sm">Type:</span>
-              <select value={noteType} onChange={(e) => setNoteType(e.target.value as 'all' | 'independent' | 'course')} className="py-2 px-4 rounded-lg border border-slate-200 focus:outline-none focus:border-red-500 cursor-pointer">
-                <option value="all">All Notes</option>
-                <option value="independent">Independent Notes</option>
-                <option value="course">Course Notes</option>
-              </select>
-            </div>
             {categories.length > 0 && (
               <div className="flex items-center gap-2">
                 <span className="text-slate-500 text-sm">Category:</span>
@@ -227,7 +210,7 @@ const AllNotes = () => {
         </div>
 
         {/* Loading State */}
-        {(courseNotesLoading || independentNotesLoading) && (
+        {notesLoading && (
           <div className="text-center py-16">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
             <h3 className="text-xl font-semibold text-slate-800" style={{ fontFamily: "'Poppins', sans-serif" }}>Loading notes...</h3>
@@ -235,7 +218,7 @@ const AllNotes = () => {
         )}
 
         {/* Error State */}
-        {(courseNotesError || independentNotesError) && (
+        {notesError && (
           <div className="text-center py-16">
             <div className="text-5xl mb-4">⚠️</div>
             <h3 className="text-xl font-semibold text-slate-800 mb-2" style={{ fontFamily: "'Poppins', sans-serif" }}>Error loading notes</h3>
@@ -244,26 +227,19 @@ const AllNotes = () => {
         )}
 
         {/* Notes Grid */}
-        {!(courseNotesLoading || independentNotesLoading) && !(courseNotesError || independentNotesError) && (
+        {!notesLoading && !notesError && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
             {filteredNotes.map((note) => {
-              const isPurchased = note.isIndependent && isNotePurchased(note._id);
-              const isFree = note.isIndependent && note.pricing === 0;
-              const canAccess = !note.isIndependent || isPurchased || isFree;
-              const noteUrl = note.isIndependent ? note.driveLink : note.notesUrl;
-              const imageUrl = note.isIndependent && note.image?.url ? note.image.url : (note.image || 'https://images.unsplash.com/photo-1507842217343-583f20270319?w=400&h=300&fit=crop');
+              const isPurchased = isNotePurchased(note._id);
+              const isFree = note.pricing === 0;
+              const canAccess = isPurchased || isFree;
+              const noteUrl = note.driveLink;
+              const imageUrl = note.image?.url || 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&h=300&fit=crop';
               
               return (
                 <div key={note._id} className="bg-white rounded-xl overflow-hidden transition-all duration-300 border border-slate-200 hover:-translate-y-2 hover:shadow-xl hover:border-red-600" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}>
                   <div className="relative">
-                    <img src={imageUrl as string} alt={note.title} className="w-full h-[160px] object-cover" style={{ background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)' }} />
-                    <div className="absolute top-3 left-3 flex gap-2">
-                      {note.isIndependent && (
-                        <span className="text-white py-1.5 px-3 rounded-full text-xs font-semibold" style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)', fontFamily: "'Poppins', sans-serif" }}>
-                          Independent
-                        </span>
-                      )}
-                    </div>
+                    <img src={imageUrl} alt={note.title} className="w-full h-[160px] object-cover" style={{ background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)' }} />
                     {note.category && (
                       <span className="absolute top-3 right-3 text-white py-1.5 px-3 rounded-full text-xs font-semibold" style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', fontFamily: "'Poppins', sans-serif" }}>{note.category}</span>
                     )}
@@ -271,15 +247,13 @@ const AllNotes = () => {
                   <div className="p-5">
                     <h3 className="text-base font-semibold text-slate-800 mb-2" style={{ fontFamily: "'Poppins', sans-serif" }}>{note.title}</h3>
                     <p className="text-slate-500 text-sm mb-3 leading-relaxed line-clamp-2">
-                      {note.isIndependent ? (note.description || 'Independent study material') : `From: ${note.courseTitle}`}
+                      {note.description || 'Study material'}
                     </p>
                     <div className="flex gap-3 mb-4 text-sm text-slate-400">
                       {note.level && <span className="flex items-center gap-1">📚 {note.level}</span>}
-                      {note.isIndependent && (
-                        <span className="flex items-center gap-1 font-semibold text-green-600">
-                          {note.pricing === 0 ? '🆓 Free' : `₹${note.pricing}`}
-                        </span>
-                      )}
+                      <span className="flex items-center gap-1 font-semibold text-green-600">
+                        {note.pricing === 0 ? '🆓 Free' : `₹${note.pricing}`}
+                      </span>
                     </div>
                     
                     {/* Action Button */}
@@ -295,7 +269,7 @@ const AllNotes = () => {
                       </a>
                     ) : (
                       <button
-                        onClick={() => handlePurchaseNote(note as typeof independentNotes[0])}
+                        onClick={() => handlePurchaseNote(note)}
                         disabled={isProcessingPayment}
                         className={`w-full py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white block ${isProcessingPayment ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5'}`}
                         style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)', boxShadow: '0 4px 12px rgba(124, 58, 237, 0.2)', fontFamily: "'Poppins', sans-serif" }}
@@ -310,7 +284,7 @@ const AllNotes = () => {
           </div>
         )}
 
-        {!(courseNotesLoading || independentNotesLoading) && !(courseNotesError || independentNotesError) && filteredNotes.length === 0 && (
+        {!notesLoading && !notesError && filteredNotes.length === 0 && (
           <div className="text-center py-16">
             <div className="text-5xl mb-4">📝</div>
             <h3 className="text-xl font-semibold text-slate-800 mb-2" style={{ fontFamily: "'Poppins', sans-serif" }}>No notes found</h3>

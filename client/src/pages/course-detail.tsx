@@ -10,7 +10,7 @@ const CourseDetail = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const [scrolled, setScrolled] = useState(false);
-  const [activeTab, setActiveTab] = useState<'videos' | 'live'>('videos');
+  const [activeTab, setActiveTab] = useState<'videos' | 'live' | 'notes'>('videos');
   const [_selectedVideo, _setSelectedVideo] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
@@ -167,8 +167,8 @@ const CourseDetail = () => {
     );
   }
 
-  // Calculate total lessons from curriculum
-  const totalLessons = course.curriculum?.length || 0;
+  // Get notes from curriculum (lectures with notesUrl)
+  const courseNotes = course.curriculum?.filter(lecture => lecture.notesUrl) || [];
 
   return (
     <div className="min-h-screen overflow-x-hidden" style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', color: '#1e293b' }}>
@@ -198,23 +198,36 @@ const CourseDetail = () => {
             <div className="absolute bottom-6 left-6 right-6 text-white">
               <h1 className="text-3xl font-bold mb-2" style={{ fontFamily: "'Poppins', sans-serif" }}>{course.title}</h1>
               <p className="text-white/80 mb-3">{course.description}</p>
-              <div className="flex items-center gap-6 text-sm">
+              <div className="flex items-center gap-6 text-sm flex-wrap">
                 <span className="flex items-center gap-2">👨‍🏫 {course.teachers?.teacherName || 'Instructor'}</span>
                 <span className="flex items-center gap-2">⏱️ {course.totalDuration || 'N/A'}</span>
-                <span className="flex items-center gap-2">📚 {totalLessons} Lessons</span>
+                <span className="flex items-center gap-2">📹 Videos</span>
+                <span className="flex items-center gap-2">📄 Notes</span>
+                <span className="flex items-center gap-2">🔴 Live</span>
                 <span className="flex items-center gap-2">💰 ₹{course.pricing || 0}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Purchase Button (if not purchased) */}
-        {!isPurchased && (
-          <div className="bg-white rounded-[15px] shadow-lg p-6 mb-8 flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-bold text-slate-800 mb-1">Get Full Access</h3>
-              <p className="text-slate-600 text-sm">Unlock all {totalLessons} lessons and live classes</p>
+        {/* Purchase/Access Section */}
+        <div className="bg-white rounded-[15px] shadow-lg p-6 mb-8 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-slate-800 mb-1">
+              {isPurchased ? '✅ You have full access' : 'Get Full Access'}
+            </h3>
+            <p className="text-slate-600 text-sm">
+              {isPurchased 
+                ? 'Access all videos, notes and live classes'
+                : 'Unlock all videos, notes and live classes'
+              }
+            </p>
+          </div>
+          {isPurchased ? (
+            <div className="py-3 px-8 rounded-lg font-semibold text-white" style={{ background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', boxShadow: '0 4px 15px rgba(5, 150, 105, 0.3)' }}>
+              🎓 View Course Content
             </div>
+          ) : (
             <button
               onClick={handlePurchase}
               disabled={isProcessingPayment}
@@ -223,8 +236,8 @@ const CourseDetail = () => {
             >
               {isProcessingPayment ? 'Processing...' : `Buy Now - ₹${course.pricing || 0}`}
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Tabs */}
         <div className="flex gap-4 mb-6">
@@ -233,14 +246,21 @@ const CourseDetail = () => {
             className={`py-3 px-6 rounded-lg font-semibold text-sm transition-all duration-300 ${activeTab === 'videos' ? 'text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}
             style={activeTab === 'videos' ? { background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)' } : {}}
           >
-            📹 Recorded Videos ({totalLessons})
+            📹 Recorded Videos
+          </button>
+          <button
+            onClick={() => setActiveTab('notes')}
+            className={`py-3 px-6 rounded-lg font-semibold text-sm transition-all duration-300 ${activeTab === 'notes' ? 'text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}
+            style={activeTab === 'notes' ? { background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)', boxShadow: '0 4px 12px rgba(124, 58, 237, 0.3)' } : {}}
+          >
+            📄 Notes
           </button>
           <button
             onClick={() => setActiveTab('live')}
             className={`py-3 px-6 rounded-lg font-semibold text-sm transition-all duration-300 ${activeTab === 'live' ? 'text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}
             style={activeTab === 'live' ? { background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', boxShadow: '0 4px 12px rgba(5, 150, 105, 0.3)' } : {}}
           >
-            🔴 Live Class {liveLecture ? '(Available)' : '(Not Scheduled)'}
+            🔴 Live Class
           </button>
         </div>
 
@@ -249,27 +269,21 @@ const CourseDetail = () => {
           <div className="bg-white rounded-[15px] shadow-lg p-6">
             <h3 className="text-xl font-bold text-slate-800 mb-6" style={{ fontFamily: "'Poppins', sans-serif" }}>Course Videos</h3>
             {course.curriculum && course.curriculum.length > 0 ? (
-              <div className="flex flex-col gap-4">
-                {course.curriculum.map((lecture, index) => {
-                  const canAccess = isPurchased || lecture.freePreview;
-                  return (
+              isPurchased ? (
+                <div className="flex flex-col gap-4">
+                  {course.curriculum.map((lecture, index) => (
                     <div key={lecture._id || index} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 hover:border-red-200 hover:bg-red-50/30 transition-all duration-300">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)' }}>
                           {index + 1}
                         </div>
                         <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-semibold text-slate-800">{lecture.title}</h4>
-                            {lecture.freePreview && (
-                              <span className="py-0.5 px-2 bg-green-100 text-green-600 text-xs font-semibold rounded-full">Free Preview</span>
-                            )}
-                          </div>
+                          <h4 className="font-semibold text-slate-800">{lecture.title}</h4>
                           <p className="text-sm text-slate-500">⏱️ {lecture.duration || 'N/A'}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {lecture.notesUrl && canAccess && (
+                        {lecture.notesUrl && (
                           <a
                             href={lecture.notesUrl}
                             target="_blank"
@@ -279,34 +293,56 @@ const CourseDetail = () => {
                             📄 Notes
                           </a>
                         )}
-                        {canAccess ? (
-                          <a
-                            href={lecture.videoUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="py-2 px-4 rounded-lg font-semibold text-sm text-center no-underline transition-all duration-300 hover:-translate-y-0.5 flex items-center gap-2 text-white"
-                            style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)' }}
-                          >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M8 5v14l11-7z"/>
-                            </svg>
-                            Watch Video
-                          </a>
-                        ) : (
-                          <button
-                            onClick={handlePurchase}
-                            disabled={isProcessingPayment}
-                            className={`py-2 px-4 rounded-lg font-semibold text-sm text-center transition-all duration-300 flex items-center gap-2 text-white ${isProcessingPayment ? 'opacity-50 cursor-not-allowed' : 'opacity-70 cursor-pointer hover:opacity-100'}`}
-                            style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)' }}
-                          >
-                            🔒 {isProcessingPayment ? 'Processing...' : 'Unlock'}
-                          </button>
-                        )}
+                        <a
+                          href={lecture.videoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="py-2 px-4 rounded-lg font-semibold text-sm text-center no-underline transition-all duration-300 hover:-translate-y-0.5 flex items-center gap-2 text-white"
+                          style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)' }}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M8 5v14l11-7z"/>
+                          </svg>
+                          Watch Video
+                        </a>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-4">🔒</div>
+                  <h4 className="text-lg font-bold text-slate-800 mb-2">Videos Available</h4>
+                  <p className="text-slate-600 mb-6">Purchase this course to access all recorded videos.</p>
+                  
+                  {/* Preview list of videos (locked) */}
+                  <div className="flex flex-col gap-3 mb-6 max-w-lg mx-auto">
+                    {course.curriculum.slice(0, 5).map((lecture, index) => (
+                      <div key={lecture._id || index} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200 text-left">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ background: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)' }}>
+                          🔒
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h5 className="font-medium text-slate-600 text-sm truncate">{lecture.title}</h5>
+                          <p className="text-xs text-slate-400">⏱️ {lecture.duration || 'N/A'}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {course.curriculum.length > 5 && (
+                      <p className="text-sm text-slate-500">...and {course.curriculum.length - 5} more videos</p>
+                    )}
+                  </div>
+                  
+                  <button
+                    onClick={handlePurchase}
+                    disabled={isProcessingPayment}
+                    className={`py-3 px-8 rounded-lg font-semibold text-white transition-all duration-300 ${isProcessingPayment ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5'}`}
+                    style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 15px rgba(220, 38, 38, 0.3)' }}
+                  >
+                    {isProcessingPayment ? 'Processing...' : `Buy Now - ₹${course.pricing || 0}`}
+                  </button>
+                </div>
+              )
             ) : (
               <div className="text-center py-8 text-slate-500">
                 <div className="text-4xl mb-4">📹</div>
@@ -360,6 +396,61 @@ const CourseDetail = () => {
                 <div className="text-4xl mb-4">📅</div>
                 <p>No live class scheduled for this course yet.</p>
                 <p className="text-sm text-slate-400 mt-2">Check back later for updates!</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Notes Content */}
+        {activeTab === 'notes' && (
+          <div className="bg-white rounded-[15px] shadow-lg p-6">
+            <h3 className="text-xl font-bold text-slate-800 mb-6" style={{ fontFamily: "'Poppins', sans-serif" }}>Course Notes</h3>
+            {isPurchased ? (
+              courseNotes.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {courseNotes.map((lecture, index) => (
+                    <div key={lecture._id || index} className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-5 border border-purple-200 hover:shadow-lg transition-all duration-300">
+                      <div className="flex items-start gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0" style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)' }}>
+                          📄
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-slate-800 text-sm">{lecture.title}</h4>
+                          <p className="text-xs text-slate-500 mt-1">Lecture notes</p>
+                        </div>
+                      </div>
+                      <a
+                        href={lecture.notesUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-2.5 px-4 rounded-lg font-semibold text-sm text-center no-underline transition-all duration-300 hover:-translate-y-0.5 flex items-center justify-center gap-2 text-white"
+                        style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)', boxShadow: '0 4px 12px rgba(124, 58, 237, 0.3)' }}
+                      >
+                        📥 Download Notes
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-slate-500">
+                  <div className="text-4xl mb-4">📝</div>
+                  <p>No notes available for this course yet.</p>
+                  <p className="text-sm text-slate-400 mt-2">Notes will be added soon!</p>
+                </div>
+              )
+            ) : (
+              <div className="text-center py-8">
+                <div className="text-4xl mb-4">🔒</div>
+                <h4 className="text-lg font-bold text-slate-800 mb-2">Notes Available</h4>
+                <p className="text-slate-600 mb-4">Purchase this course to access all study notes.</p>
+                <button
+                  onClick={handlePurchase}
+                  disabled={isProcessingPayment}
+                  className={`py-3 px-8 rounded-lg font-semibold text-white transition-all duration-300 ${isProcessingPayment ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5'}`}
+                  style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 15px rgba(220, 38, 38, 0.3)' }}
+                >
+                  {isProcessingPayment ? 'Processing...' : `Buy Now - ₹${course.pricing || 0}`}
+                </button>
               </div>
             )}
           </div>

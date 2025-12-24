@@ -92,10 +92,10 @@ export interface BackendLiveLectureResponse {
   message?: string;
 }
 
-// Get live lecture by course ID
+// Get live lecture by course ID (using student endpoint)
 export const getLiveLectureByCourse = async (courseId: string): Promise<BackendLiveLectureResponse> => {
   const response = await api.get<BackendLiveLectureResponse>(
-    `/instructor/live-lecture/course/${courseId}`
+    `/student/live-lecture/course/${courseId}`
   );
   return response.data;
 };

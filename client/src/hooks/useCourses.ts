@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getAllCourses, getCourseDetails, getPurchasedCourses, checkCoursePurchase, getLiveLectureByCourse } from '../services/course.service';
+import { getAllIndependentNotes } from '../services/note.service';
 import type { Course } from '../lib/schemas';
 
 // Hook to get all courses
@@ -23,6 +24,8 @@ export const useCourse = (courseId: string) => {
     queryFn: () => getCourseDetails(courseId),
     select: (data) => data.data as Course,
     enabled: !!courseId,
+    staleTime: 0, // Always refetch to get latest data
+    refetchOnMount: true,
   });
 };
 
@@ -57,12 +60,18 @@ export const useLiveLecture = (courseId: string) => {
   });
 };
 
-// Hook to get all notes (extracted from all courses' curriculum)
+// Hook to get all notes (from independent notes API + course curriculum)
 export const useAllNotes = () => {
-  const { data: courses, isLoading, error } = useCourses();
+  // Fetch independent notes from API
+  const { data: independentNotesResponse, isLoading: independentLoading, error: independentError } = useQuery({
+    queryKey: ['independentNotes'],
+    queryFn: () => getAllIndependentNotes(),
+  });
+
+  const { data: courses, isLoading: coursesLoading, error: coursesError } = useCourses();
   
   // Extract all lectures with notesUrl from all courses
-  const notes = courses?.flatMap(course => 
+  const courseNotes = courses?.flatMap(course => 
     (course.curriculum || [])
       .filter(lecture => lecture.notesUrl)
       .map(lecture => ({
@@ -71,11 +80,37 @@ export const useAllNotes = () => {
         courseTitle: course.title,
         courseId: course._id,
         notesUrl: lecture.notesUrl,
+        driveLink: lecture.notesUrl,
         category: course.category,
         level: course.level,
-        image: course.image,
+        image: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&h=300&fit=crop',
+        isIndependent: false,
+        pricing: 0,
       }))
   ) || [];
 
-  return { data: notes, isLoading, error };
+  // Format independent notes
+  const independentNotes = (independentNotesResponse?.data || []).map(note => ({
+    _id: note._id,
+    title: note.title,
+    description: note.description,
+    courseTitle: note.category || 'Independent Note',
+    courseId: '',
+    notesUrl: note.driveLink,
+    driveLink: note.driveLink,
+    category: note.category,
+    level: note.level,
+    image: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&h=300&fit=crop',
+    isIndependent: true,
+    pricing: note.pricing || 0,
+  }));
+
+  // Combine both - independent notes first
+  const allNotes = [...independentNotes, ...courseNotes];
+
+  return { 
+    data: allNotes, 
+    isLoading: independentLoading || coursesLoading, 
+    error: independentError || coursesError 
+  };
 };

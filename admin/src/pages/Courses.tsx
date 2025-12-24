@@ -4,7 +4,7 @@ import { useCourses, useCreateCourse, useUpdateCourse, useDeleteCourse } from '.
 import { courseFormSchema, type Course } from '../lib/schemas';
 
 const CATEGORIES = ['Web Development', 'Mobile Development', 'Data Science', 'Machine Learning', 'Electronics', 'Programming'];
-const LEVELS = ['Beginner', 'Intermediate', 'Advanced'];
+const LEVELS = ['Beginner', 'Intermediate', 'Advanced', 'School Level'];
 const LANGUAGES = ['English', 'Hindi', 'Both'];
 
 const Courses = () => {

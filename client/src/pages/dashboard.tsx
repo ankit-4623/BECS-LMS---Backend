@@ -142,9 +142,10 @@ const Dashboard = () => {
     }
   };
 
-  // Get first 3 courses for display
-  const featuredCourses = courses.slice(0, 3);
-  const schoolCourses = courses.slice(0, 3); // Reuse courses for school level section
+  // Get first 3 courses for display (exclude school level)
+  const featuredCourses = courses.filter(c => c.level !== 'School Level').slice(0, 3);
+  // Get school level courses
+  const schoolCourses = courses.filter(c => c.level === 'School Level').slice(0, 3);
 
   // Fetch notes from API
   const { data: allNotes = [], isLoading: notesLoading } = useAllNotes();
@@ -191,7 +192,7 @@ const Dashboard = () => {
           </Link>
 
           <ul className="hidden md:flex gap-12 list-none">
-            {['home', 'courses', 'school-level', 'notes'].map((item) => (
+            {[ 'courses', 'school-level', 'notes'].map((item) => (
               <li key={item}>
                 <button
                   onClick={() => scrollToSection(item)}
@@ -380,13 +381,7 @@ const Dashboard = () => {
                     {course.category && <span className="flex items-center gap-1">📚 {course.category}</span>}
                   </div>
                   <div className="flex gap-3">
-                    <button
-                      onClick={() => openPreview(course._id, course.title, course.teachers?.teacherName)}
-                      className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center bg-slate-100 text-slate-800 border border-slate-200 hover:bg-slate-200"
-                      style={{ fontFamily: "'Poppins', sans-serif" }}
-                    >
-                      Preview
-                    </button>
+                   
                     <button
                       onClick={() => handleBuyCourse(course._id, course.title)}
                       className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white hover:-translate-y-0.5"
@@ -472,13 +467,7 @@ const Dashboard = () => {
                     {course.category && <span className="flex items-center gap-1">📚 {course.category}</span>}
                   </div>
                   <div className="flex gap-3">
-                    <button
-                      onClick={() => openPreview(course._id, course.title, course.teachers?.teacherName)}
-                      className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center bg-slate-100 text-slate-800 border border-slate-200 hover:bg-slate-200"
-                      style={{ fontFamily: "'Poppins', sans-serif" }}
-                    >
-                      Preview
-                    </button>
+                    
                     <button
                       onClick={() => handleBuyCourse(course._id, course.title)}
                       className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white hover:-translate-y-0.5"
@@ -538,14 +527,11 @@ const Dashboard = () => {
                   style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}
                 >
                   <div className="relative">
-                    <div
-                      className="w-full h-[180px] flex items-center justify-center"
-                      style={{ background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)' }}
-                    >
-                      <svg className="w-16 h-16 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    </div>
+                    <img
+                      src={note.image || 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&h=300&fit=crop'}
+                      alt={note.title}
+                      className="w-full h-[180px] object-cover"
+                    />
                     <span
                       className="absolute top-3 right-3 text-white py-1.5 px-3 rounded-full text-xs font-semibold"
                       style={{
@@ -555,6 +541,17 @@ const Dashboard = () => {
                     >
                       {note.category || note.level || 'PDF'}
                     </span>
+                    {note.isIndependent && note.pricing > 0 && (
+                      <span
+                        className="absolute top-3 left-3 text-white py-1.5 px-3 rounded-full text-xs font-semibold"
+                        style={{
+                          background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                          fontFamily: "'Poppins', sans-serif",
+                        }}
+                      >
+                        ₹{note.pricing}
+                      </span>
+                    )}
                   </div>
                   <div className="p-6">
                     <h3
@@ -564,26 +561,40 @@ const Dashboard = () => {
                       {note.title}
                     </h3>
                     <p className="text-slate-500 text-sm mb-4 leading-relaxed">
-                      From: {note.courseTitle}
+                      {note.isIndependent ? note.category || 'Independent Note' : `From: ${note.courseTitle}`}
                     </p>
                     <div className="flex gap-4 mb-4 text-sm text-slate-400">
                       <span className="flex items-center gap-1">📚 {note.level || 'All levels'}</span>
                       <span className="flex items-center gap-1">📁 {note.category || 'General'}</span>
                     </div>
                     <div className="flex gap-3">
-                      <a
-                        href={note.notesUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white hover:-translate-y-0.5 no-underline"
-                        style={{
-                          background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
-                          boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)',
-                          fontFamily: "'Poppins', sans-serif",
-                        }}
-                      >
-                        View Notes
-                      </a>
+                      {note.isIndependent && note.pricing > 0 ? (
+                        <Link
+                          to={`/notes/${note._id}`}
+                          className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white hover:-translate-y-0.5 no-underline"
+                          style={{
+                            background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                            boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)',
+                            fontFamily: "'Poppins', sans-serif",
+                          }}
+                        >
+                          Buy Now - ₹{note.pricing}
+                        </Link>
+                      ) : (
+                        <a
+                          href={note.notesUrl || note.driveLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white hover:-translate-y-0.5 no-underline"
+                          style={{
+                            background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                            boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)',
+                            fontFamily: "'Poppins', sans-serif",
+                          }}
+                        >
+                          View Notes
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>
