@@ -2,7 +2,10 @@ import axios, { AxiosError } from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
 
 // API Base URL - change this for production
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+// Debug: Log the API URL being used
+console.log('[API] Base URL:', API_BASE_URL);
 
 // Create axios instance
 const api = axios.create({
@@ -20,6 +23,8 @@ api.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // Debug: Log outgoing requests
+    console.log('[API] Request:', config.method?.toUpperCase(), config.baseURL + config.url);
     return config;
   },
   (error: AxiosError) => {

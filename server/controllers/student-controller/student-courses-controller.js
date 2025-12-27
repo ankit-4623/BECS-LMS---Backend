@@ -7,6 +7,14 @@ const getCoursesByStudentId = async (req, res) => {
       userId: studentId,
     });
 
+    // Return empty array if user has no purchased courses
+    if (!studentBoughtCourses || !studentBoughtCourses.courses) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+      });
+    }
+
     res.status(200).json({
       success: true,
       data: studentBoughtCourses.courses,

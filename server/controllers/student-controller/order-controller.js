@@ -8,11 +8,14 @@ const crypto = require('crypto');
 const createOrder = async (req, res) => {
     try {
         const { courseId } = req.body;
-        const userId = req.user.id;
+        const userId = req.user._id; // Changed from req.user.id to req.user._id
+
+        console.log('[Order] Creating order - courseId:', courseId, 'userId:', userId);
 
         // Validate if course exists and get course details
         const course = await Course.findById(courseId);
         if (!course) {
+            console.log('[Order] Course not found:', courseId);
             return res.status(404).json({
                 success: false,
                 message: 'Course not found'
@@ -22,11 +25,14 @@ const createOrder = async (req, res) => {
         // Get user details
         const user = await User.findById(userId);
         if (!user) {
+            console.log('[Order] User not found:', userId);
             return res.status(404).json({
                 success: false,
                 message: 'User not found'
             });
         }
+
+        console.log('[Order] Found course:', course.title, 'and user:', user.userName);
 
         // Create Razorpay Order
         const options = {

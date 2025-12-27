@@ -46,6 +46,12 @@ app.use(
 
 app.use(express.json());
 
+// Request logger for debugging
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
+});
+
 //database connection
 mongoose
   .connect(MONGO_URI)
@@ -66,6 +72,15 @@ app.use("/student/courses-bought", studentCoursesRoutes);
 app.use("/student/course-progress", studentCourseProgressRoutes);
 app.use("/student/notes", studentNoteRoutes);
 app.use("/student/live-lecture", studentLiveLectureRoutes);
+
+// 404 handler - catches all unmatched routes
+app.use((req, res, next) => {
+  console.log(`[404] Route not found: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({
+    success: false,
+    message: `Route not found: ${req.method} ${req.originalUrl}`,
+  });
+});
 
 app.use((err, req, res, next) => {
   console.log(err.stack);

@@ -1,5 +1,6 @@
 const Razorpay = require('razorpay');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
