@@ -6,13 +6,15 @@ const {
     checkNotePurchase,
     getPurchasedNotes,
     createNoteOrder,
-    verifyNotePayment
+    verifyNotePayment,
+    getCourseNotes
 } = require("../../controllers/student-controller/note-controller");
 const { auth } = require("../../middleware/auth-middleware");
 
 // Public routes (no auth required)
 router.get("/get", getAllIndependentNotes);
 router.get("/details/:id", getNoteDetails);
+router.get("/course/:courseId", getCourseNotes);
 
 // Protected routes (require authentication)
 router.get("/check-purchase/:noteId/:studentId", auth, checkNotePurchase);

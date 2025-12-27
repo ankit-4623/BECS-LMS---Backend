@@ -67,6 +67,14 @@ export const getNoteDetails = async (noteId: string): Promise<ApiResponse<StudyN
   return response.data;
 };
 
+// Get course notes (notes attached to a specific course)
+export const getCourseNotes = async (courseId: string): Promise<ApiResponse<StudyNote[]>> => {
+  const response = await api.get<ApiResponse<StudyNote[]>>(
+    `/student/notes/course/${courseId}`
+  );
+  return response.data;
+};
+
 // Check if note is purchased
 export const checkNotePurchase = async (
   noteId: string,

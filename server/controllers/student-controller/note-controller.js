@@ -1,3 +1,25 @@
+// Get all notes attached to a specific course
+const getCourseNotes = async (req, res) => {
+    try {
+        const { courseId } = req.params;
+        const notes = await StudyNote.find({
+            courseId: courseId,
+            isPublished: true,
+            isIndependent: false
+        }).select('-purchasedBy');
+        res.status(200).json({
+            success: true,
+            data: notes
+        });
+    } catch (error) {
+        console.error('Error in getCourseNotes:', error);
+        res.status(500).json({
+            success: false,
+            message: "Error occurred while fetching course notes",
+            error: error.message
+        });
+    }
+};
 const StudyNote = require("../../models/StudyNote");
 const razorpay = require("../../helpers/razorpay");
 const crypto = require('crypto');
@@ -305,5 +327,6 @@ module.exports = {
     checkNotePurchase,
     getPurchasedNotes,
     createNoteOrder,
-    verifyNotePayment
+    verifyNotePayment,
+    getCourseNotes,
 };

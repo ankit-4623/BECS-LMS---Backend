@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getAllCourses, getCourseDetails, getPurchasedCourses, checkCoursePurchase, getLiveLectureByCourse } from '../services/course.service';
-import { getAllIndependentNotes } from '../services/note.service';
+import { getAllIndependentNotes, getCourseNotes } from '../services/note.service';
 import type { Course } from '../lib/schemas';
 
 // Hook to get all courses
@@ -40,12 +40,14 @@ export const usePurchasedCourses = (studentId: string | undefined) => {
 };
 
 // Hook to check if course is purchased
-export const useCheckPurchase = (courseId: string, studentId: string | undefined) => {
+export const useCheckPurchase = (courseId: string, studentId: string | undefined, refreshKey?: number) => {
   return useQuery({
-    queryKey: ['checkPurchase', courseId, studentId],
+    queryKey: ['checkPurchase', courseId, studentId, refreshKey],
     queryFn: () => checkCoursePurchase(courseId, studentId!),
     select: (data) => data.data || false,
     enabled: !!courseId && !!studentId,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 };
 
@@ -57,6 +59,18 @@ export const useLiveLecture = (courseId: string) => {
     select: (data) => data.data,
     enabled: !!courseId,
     retry: false, // Don't retry if no live lecture exists
+  });
+};
+
+// Hook to get course notes (notes attached to a specific course)
+export const useCourseNotes = (courseId: string) => {
+  return useQuery({
+    queryKey: ['courseNotes', courseId],
+    queryFn: () => getCourseNotes(courseId),
+    select: (data) => data.data || [],
+    enabled: !!courseId,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 };
 

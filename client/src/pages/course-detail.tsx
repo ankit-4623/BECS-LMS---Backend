@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { useCourse, useCheckPurchase, useLiveLecture } from '../hooks/useCourses';
+import { useCourse, useCheckPurchase, useLiveLecture, useCourseNotes } from '../hooks/useCourses';
 import { useAuth } from '../context/AuthContext';
 import { useCreateOrder, useVerifyPayment } from '../hooks/useOrder';
 import '../types/razorpay.d.ts';
@@ -24,8 +24,12 @@ const CourseDetail = () => {
   // Fetch live lecture for this course
   const { data: liveLecture } = useLiveLecture(courseId || '');
   
+  // Fetch course notes (notes attached to this course)
+  const { data: courseNotesData } = useCourseNotes(courseId || '');
+  
   // Check if user has purchased this course
-  const { data: isPurchased, refetch: refetchPurchase } = useCheckPurchase(courseId || '', user?._id);
+  const [purchaseRefreshKey, setPurchaseRefreshKey] = useState(0);
+  const { data: isPurchased, refetch: refetchPurchase } = useCheckPurchase(courseId || '', user?._id, purchaseRefreshKey);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -103,7 +107,8 @@ const CourseDetail = () => {
 
             if (verifyResponse.success) {
               alert('Payment successful! You now have access to this course.');
-              // Refresh course and purchase status
+              // Force refresh purchase status and course
+              setPurchaseRefreshKey((k) => k + 1);
               refetchCourse();
               refetchPurchase();
             } else {
@@ -168,7 +173,31 @@ const CourseDetail = () => {
   }
 
   // Get notes from curriculum (lectures with notesUrl)
-  const courseNotes = course.curriculum?.filter(lecture => lecture.notesUrl) || [];
+  const curriculumNotes = (course.curriculum || []).filter(lecture => lecture.notesUrl).map(lecture => ({
+    _id: lecture._id || `${course._id}-lecture-${lecture.title}`,
+    title: `${lecture.title} Notes`,
+    notesUrl: lecture.notesUrl,
+    type: 'curriculum' as const,
+  }));
+
+  // Get course notes (from the separate notes API)
+  const courseSpecificNotes = (courseNotesData || []).map(note => ({
+    _id: note._id,
+    title: note.title,
+    notesUrl: note.driveLink,
+    type: 'course' as const,
+  }));
+
+  // Combine all notes
+  const allNotes = [...curriculumNotes, ...courseSpecificNotes];
+
+  // Get independent notes for this course (if any)
+  // (Assumes you have a useAllNotes or similar hook, otherwise skip this block)
+  // import { useAllNotes } from '../hooks/useCourses';
+  // const { data: allNotes } = useAllNotes();
+  // const independentNotes = (allNotes || []).filter(note => note.courseId === course._id && note.isIndependent);
+
+  // For now, only show courseNotes. To show independent notes, merge them here.
 
   return (
     <div className="min-h-screen overflow-x-hidden" style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', color: '#1e293b' }}>
@@ -268,10 +297,10 @@ const CourseDetail = () => {
         {activeTab === 'videos' && (
           <div className="bg-white rounded-[15px] shadow-lg p-6">
             <h3 className="text-xl font-bold text-slate-800 mb-6" style={{ fontFamily: "'Poppins', sans-serif" }}>Course Videos</h3>
-            {course.curriculum && course.curriculum.length > 0 ? (
+            {course.curriculum && course.curriculum.filter(l => l.videoUrl).length > 0 ? (
               isPurchased ? (
                 <div className="flex flex-col gap-4">
-                  {course.curriculum.map((lecture, index) => (
+                  {course.curriculum.filter(lecture => lecture.videoUrl).map((lecture, index) => (
                     <div key={lecture._id || index} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 hover:border-red-200 hover:bg-red-50/30 transition-all duration-300">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)' }}>
@@ -293,18 +322,20 @@ const CourseDetail = () => {
                             📄 Notes
                           </a>
                         )}
-                        <a
-                          href={lecture.videoUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="py-2 px-4 rounded-lg font-semibold text-sm text-center no-underline transition-all duration-300 hover:-translate-y-0.5 flex items-center gap-2 text-white"
-                          style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)' }}
-                        >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M8 5v14l11-7z"/>
-                          </svg>
-                          Watch Video
-                        </a>
+                        {lecture.videoUrl && (
+                          <a
+                            href={lecture.videoUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="py-2 px-4 rounded-lg font-semibold text-sm text-center no-underline transition-all duration-300 hover:-translate-y-0.5 flex items-center gap-2 text-white"
+                            style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)' }}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M8 5v14l11-7z"/>
+                            </svg>
+                            Watch Video
+                          </a>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -406,21 +437,23 @@ const CourseDetail = () => {
           <div className="bg-white rounded-[15px] shadow-lg p-6">
             <h3 className="text-xl font-bold text-slate-800 mb-6" style={{ fontFamily: "'Poppins', sans-serif" }}>Course Notes</h3>
             {isPurchased ? (
-              courseNotes.length > 0 ? (
+              allNotes.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {courseNotes.map((lecture, index) => (
-                    <div key={lecture._id || index} className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-5 border border-purple-200 hover:shadow-lg transition-all duration-300">
+                  {allNotes.map((note, index) => (
+                    <div key={note._id || index} className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-5 border border-purple-200 hover:shadow-lg transition-all duration-300">
                       <div className="flex items-start gap-3 mb-4">
                         <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0" style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)' }}>
                           📄
                         </div>
                         <div>
-                          <h4 className="font-semibold text-slate-800 text-sm">{lecture.title}</h4>
-                          <p className="text-xs text-slate-500 mt-1">Lecture notes</p>
+                          <h4 className="font-semibold text-slate-800 text-sm">{note.title}</h4>
+                          <p className="text-xs text-slate-500 mt-1">
+                            {note.type === 'curriculum' ? 'Lecture notes' : 'Course notes'}
+                          </p>
                         </div>
                       </div>
                       <a
-                        href={lecture.notesUrl}
+                        href={note.notesUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="w-full py-2.5 px-4 rounded-lg font-semibold text-sm text-center no-underline transition-all duration-300 hover:-translate-y-0.5 flex items-center justify-center gap-2 text-white"
