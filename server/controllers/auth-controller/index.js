@@ -1,7 +1,11 @@
-require('dotenv').config();
+require("dotenv").config();
 const User = require("../../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { redisClient } = require("../../config/redis");
+const { publishToQueue } = require("../../config/rabbitmq");
+
+
 
 const registerUser = async (req, res) => {
   const { userName, userEmail, password } = req.body;
@@ -17,18 +21,46 @@ const registerUser = async (req, res) => {
     });
   }
 
-  const hashPassword = await bcrypt.hash(password, 10);
-  const newUser = new User({
-    userName,
-    userEmail,    
-    password: hashPassword,
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+
+  const rateLimitKey = `otp:ratelimit:${userEmail}`;
+  const rateLimit = await redisClient.get(rateLimitKey);
+  if (rateLimit) {
+    return res.status(429).json({
+      success: false,
+      message: "Too many requests. Please try again later.",
+    });
+  }
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const otpKey = `otp:${userEmail}`;
+  await redisClient.set(
+    otpKey,
+    JSON.stringify({
+      otp,
+      userName,      
+      password: hashedPassword,
+    }),
+    {
+      EX: 300, // OTP expires in 5 minutes
+    }
+  );
+
+  await redisClient.set(rateLimitKey, "true", {
+    EX: 60, // Rate limit for 1 minute
   });
 
-  await newUser.save();
+   const message = {
+    to: userEmail,
+    subject: "Your otp code",
+    body: `Your OTP is ${otp}. It is valid for 5 minutes`,
+  };
+
+  await publishToQueue("send-otp", message);
 
   return res.status(201).json({
     success: true,
-    message: "User registered successfully!",
+    message: "otp send to email successfully!",
   });
 };
 
@@ -78,27 +110,69 @@ const logoutUser = async (req, res) => {
   try {
     // Get user from auth middleware
     const userId = req.user?._id;
-    
+
     if (userId) {
       // Update last activity timestamp
       await User.findByIdAndUpdate(userId, {
-        lastLogin: new Date()
+        lastLogin: new Date(),
       });
     }
 
     // Send success response
     res.status(200).json({
       success: true,
-      message: "Logged out successfully"
+      message: "Logged out successfully",
     });
   } catch (error) {
-    console.error('Logout error:', error);
+    console.error("Logout error:", error);
     res.status(500).json({
       success: false,
       message: "Error during logout",
-      error: error.message
+      error: error.message,
     });
   }
 };
 
-module.exports = { registerUser, loginUser, logoutUser };
+const verifyOtp = async (req, res) => {
+  const { userEmail, otp } = req.body;
+
+  const otpKey = `otp:${userEmail}`;
+  const data = await redisClient.get(otpKey);
+
+  if (!data) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid or expired OTP",
+    });
+  } 
+  const parsedData = JSON.parse(data);
+
+  if (parsedData.otp !== otp) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid OTP",
+    });
+  }
+
+  const newUser = new User({
+    userName: parsedData.userName,
+    userEmail,
+    password: parsedData.password,
+  });
+
+  await newUser.save();
+
+  await redisClient.del(otpKey);
+
+  return res.status(201).json({
+    success: true,
+    message: "User registered successfully",
+    user: {
+      _id: newUser._id,
+      userName: newUser.userName,
+      userEmail: newUser.userEmail,
+    },
+  });
+};
+
+module.exports = { registerUser, loginUser, logoutUser, verifyOtp };
