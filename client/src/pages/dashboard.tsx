@@ -222,7 +222,7 @@ const Dashboard = () => {
           </ul>
 
           <div className="flex items-center gap-6">
-            <button
+            {/* <button
               onClick={() => setIsPurchasesModalOpen(true)}
               className="relative text-white border-none py-2.5 px-6 rounded-lg font-semibold text-[0.95rem] cursor-pointer transition-all duration-300 hover:-translate-y-0.5"
               style={{
@@ -238,7 +238,7 @@ const Dashboard = () => {
               >
                 {purchasedCourses.length}
               </span>
-            </button>
+            </button> */}
 
             <div className="relative">
               <button
@@ -681,7 +681,7 @@ const Dashboard = () => {
             style={{ boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)' }}
           >
             <div className="flex justify-between items-center mb-8 pb-6 border-b-2 border-slate-100">
-              <h2
+              {/* <h2
                 className="text-2xl font-bold text-slate-800 m-0"
                 style={{ fontFamily: "'Poppins', sans-serif" }}
               >
@@ -692,7 +692,7 @@ const Dashboard = () => {
                 className="bg-transparent border-none text-3xl cursor-pointer text-slate-400 p-0 w-10 h-10 flex items-center justify-center transition-colors duration-300 hover:text-red-600"
               >
                 ×
-              </button>
+              </button> */}
             </div>
             
             {/* Loading State */}
