@@ -16,6 +16,8 @@ const studentCourseProgressRoutes = require("./routes/student-routes/course-prog
 const studentNoteRoutes = require("./routes/student-routes/note-routes");
 const studentLiveLectureRoutes = require("./routes/student-routes/live-lecture-routes");
 const studentRecordedLectureRoutes = require("./routes/student-routes/recorded-lecture-routes");
+const { redisdb } = require("./config/redis");
+const { connectRabbitMQ } = require("./config/rabbitmq");
 
 const app = express();
 const PORT = process.env.PORT ;
@@ -53,11 +55,16 @@ app.use((req, res, next) => {
   next();
 });
 
+
+
+
 //database connection
 mongoose
   .connect(MONGO_URI)
   .then(() => console.log("mongodb is connected"))
   .catch((e) => console.log(e));
+
+// Redis connection
 
 //routes configuration
 app.use("/auth", authRoutes);
@@ -93,5 +100,7 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
+  redisdb();
+  connectRabbitMQ()
   console.log(`Server is now running on port ${PORT}`);
 });
