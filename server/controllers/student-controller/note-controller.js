@@ -133,7 +133,7 @@ const checkNotePurchase = async (req, res) => {
         }
 
         const hasPurchased = note.purchasedBy.some(
-            purchase => purchase.studentId.toString() === studentId
+            purchase => purchase.studentId && purchase.studentId.toString() === studentId
         );
 
         res.status(200).json({
@@ -180,7 +180,7 @@ const getPurchasedNotes = async (req, res) => {
 const createNoteOrder = async (req, res) => {
     try {
         const { noteId } = req.body;
-        const userId = req.user.id;
+        const userId = req.user._id;
 
         const note = await StudyNote.findById(noteId);
         if (!note) {
@@ -199,7 +199,7 @@ const createNoteOrder = async (req, res) => {
 
         // Check if already purchased
         const alreadyPurchased = note.purchasedBy.some(
-            p => p.studentId.toString() === userId
+            p => p.studentId && p.studentId.toString() === userId
         );
         if (alreadyPurchased) {
             return res.status(400).json({
@@ -270,7 +270,7 @@ const createNoteOrder = async (req, res) => {
 const verifyNotePayment = async (req, res) => {
     try {
         const { noteId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
-        const userId = req.user.id;
+        const userId = req.user._id;
 
         // Verify signature
         const body = razorpayOrderId + "|" + razorpayPaymentId;

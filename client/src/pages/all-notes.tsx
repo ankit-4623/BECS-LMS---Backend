@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useIndependentNotes, useCreateNoteOrder, useVerifyNotePayment, usePurchasedNotes } from '../hooks/useNotes';
 import { useAuth } from '../context/AuthContext';
 import '../types/razorpay.d.ts';
 
 const AllNotes = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, isAuthenticated } = useAuth();
   const { data: independentNotes = [], isLoading: notesLoading, error: notesError } = useIndependentNotes();
   const { data: purchasedNotes = [] } = usePurchasedNotes(user?._id);
@@ -69,6 +71,8 @@ const AllNotes = () => {
       // If note is free
       if (orderResponse.data.isFree) {
         alert('Note added successfully! You can now access it.');
+        // Invalidate purchased notes query
+        queryClient.invalidateQueries({ queryKey: ['purchasedNotes'] });
         setIsProcessingPayment(false);
         return;
       }

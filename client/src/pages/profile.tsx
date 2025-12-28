@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { usePurchasedCourses } from '../hooks/useCourses';
+import { usePurchasedNotes } from '../hooks/useNotes';
 import { useAuth } from '../context/AuthContext';
 
 const Profile = () => {
@@ -10,6 +11,9 @@ const Profile = () => {
 
   // Fetch purchased courses from API
   const { data: purchasedCourses = [], isLoading: purchasesLoading } = usePurchasedCourses(user?._id);
+  
+  // Fetch purchased notes from API
+  const { data: purchasedNotes = [], isLoading: notesLoading } = usePurchasedNotes(user?._id);
 
   useEffect(() => {
     // Redirect to login if not authenticated
@@ -178,6 +182,15 @@ const Profile = () => {
                   </p>
                   <p className="text-sm text-slate-500">Courses</p>
                 </div>
+                <div className="text-center">
+                  <p
+                    className="text-3xl font-bold text-red-600"
+                    style={{ fontFamily: "'Poppins', sans-serif" }}
+                  >
+                    {notesLoading ? '...' : purchasedNotes.length}
+                  </p>
+                  <p className="text-sm text-slate-500">Notes</p>
+                </div>
               </div>
 
               {/* Logout Button */}
@@ -293,7 +306,7 @@ const Profile = () => {
             )}
           </div>
 
-          {/* Placeholder for Notes - Coming Soon */}
+          {/* Purchased Notes */}
           <div className="bg-white rounded-[15px] shadow-lg p-8">
             <h2
               className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-3"
@@ -306,29 +319,96 @@ const Profile = () => {
               Purchased Notes
             </h2>
 
-            <div className="text-center py-12">
-              <div className="text-5xl mb-4">📝</div>
-              <h3
-                className="text-xl font-semibold text-slate-800 mb-2"
-                style={{ fontFamily: "'Poppins', sans-serif" }}
-              >
-                No Notes Yet
-              </h3>
-              <p className="text-slate-500 mb-6">
-                You haven't purchased any notes yet.
-              </p>
-              <Link
-                to="/notes"
-                className="inline-block text-white py-2.5 px-6 rounded-lg font-semibold cursor-pointer transition-all duration-300 hover:-translate-y-0.5 no-underline"
-                style={{
-                  background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
-                  fontFamily: "'Poppins', sans-serif",
-                  boxShadow: '0 4px 15px rgba(220, 38, 38, 0.3)',
-                }}
-              >
-                Browse Notes
-              </Link>
-            </div>
+            {notesLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
+                <h3 className="text-xl font-semibold text-slate-800" style={{ fontFamily: "'Poppins', sans-serif" }}>
+                  Loading notes...
+                </h3>
+              </div>
+            ) : purchasedNotes.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-5xl mb-4">📝</div>
+                <h3
+                  className="text-xl font-semibold text-slate-800 mb-2"
+                  style={{ fontFamily: "'Poppins', sans-serif" }}
+                >
+                  No Notes Yet
+                </h3>
+                <p className="text-slate-500 mb-6">
+                  You haven't purchased any notes yet.
+                </p>
+                <Link
+                  to="/notes"
+                  className="inline-block text-white py-2.5 px-6 rounded-lg font-semibold cursor-pointer transition-all duration-300 hover:-translate-y-0.5 no-underline"
+                  style={{
+                    background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                    fontFamily: "'Poppins', sans-serif",
+                    boxShadow: '0 4px 15px rgba(220, 38, 38, 0.3)',
+                  }}
+                >
+                  Browse Notes
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {purchasedNotes.map((note) => {
+                  const imageUrl = note.image?.url || 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&h=300&fit=crop';
+                  
+                  return (
+                    <div
+                      key={note._id}
+                      className="bg-slate-50 rounded-xl overflow-hidden transition-all duration-300 border border-slate-200 hover:-translate-y-2 hover:shadow-xl hover:border-red-600"
+                      style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}
+                    >
+                      <div className="relative">
+                        <img
+                          src={imageUrl}
+                          alt={note.title}
+                          className="w-full h-[160px] object-cover"
+                          style={{ background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)' }}
+                        />
+                        {note.category && (
+                          <span
+                            className="absolute top-3 right-3 text-white py-1.5 px-3 rounded-full text-xs font-semibold"
+                            style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', fontFamily: "'Poppins', sans-serif" }}
+                          >
+                            {note.category}
+                          </span>
+                        )}
+                      </div>
+                      <div className="p-5">
+                        <h3 className="text-base font-semibold text-slate-800 mb-2" style={{ fontFamily: "'Poppins', sans-serif" }}>
+                          {note.title}
+                        </h3>
+                        <p className="text-slate-500 text-sm mb-3 leading-relaxed line-clamp-2">
+                          {note.description || 'Study material'}
+                        </p>
+                        <div className="flex gap-3 mb-4 text-sm text-slate-400">
+                          {note.level && <span className="flex items-center gap-1">📚 {note.level}</span>}
+                          <span className="flex items-center gap-1 font-semibold text-green-600">
+                            ₹{note.pricing}
+                          </span>
+                        </div>
+                        <a
+                          href={note.driveLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white hover:-translate-y-0.5 block no-underline"
+                          style={{
+                            background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                            boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)',
+                            fontFamily: "'Poppins', sans-serif"
+                          }}
+                        >
+                          📄 View Notes
+                        </a>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </main>

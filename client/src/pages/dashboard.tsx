@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useCourses, usePurchasedCourses, useAllNotes } from '../hooks/useCourses';
+import { useCourses, usePurchasedCourses } from '../hooks/useCourses';
+import { useIndependentNotes, usePurchasedNotes } from '../hooks/useNotes';
 import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
@@ -22,6 +23,12 @@ const Dashboard = () => {
   
   // Fetch purchased courses from API
   const { data: purchasedCourses = [], isLoading: purchasesLoading } = usePurchasedCourses(user?._id);
+
+  // Fetch independent notes from API
+  const { data: allNotes = [], isLoading: notesLoading } = useIndependentNotes();
+
+  // Fetch purchased notes from API
+  const { data: purchasedNotes = [], isLoading: purchasedNotesLoading } = usePurchasedNotes(user?._id);
 
   useEffect(() => {
     // Scroll listener
@@ -59,6 +66,16 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Logout failed:', error);
     }
+  };
+
+  // Check if a course is purchased
+  const isCoursePurchased = (courseId: string) => {
+    return purchasedCourses.some(course => course.courseId === courseId);
+  };
+
+  // Check if a note is purchased
+  const isNotePurchased = (noteId: string) => {
+    return purchasedNotes.some(note => note._id === noteId);
   };
 
   const drawCircuit = () => {
@@ -147,9 +164,8 @@ const Dashboard = () => {
   // Get school level courses
   const schoolCourses = courses.filter(c => c.level === 'School Level').slice(0, 3);
 
-  // Fetch notes from API
-  const { data: allNotes = [], isLoading: notesLoading } = useAllNotes();
-  const notes = allNotes.slice(0, 3); // Get first 3 notes for display
+  // Get first 3 notes for display
+  const notes = allNotes.slice(0, 3);
 
   return (
     <div
@@ -381,18 +397,31 @@ const Dashboard = () => {
                     {course.category && <span className="flex items-center gap-1">📚 {course.category}</span>}
                   </div>
                   <div className="flex gap-3">
-                   
-                    <button
-                      onClick={() => handleBuyCourse(course._id, course.title)}
-                      className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white hover:-translate-y-0.5"
-                      style={{
-                        background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
-                        boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)',
-                        fontFamily: "'Poppins', sans-serif",
-                      }}
-                    >
-                      ₹{course.pricing || 0}
-                    </button>
+                    {isCoursePurchased(course._id) ? (
+                      <Link
+                        to={`/course/${course._id}`}
+                        className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white hover:-translate-y-0.5 no-underline"
+                        style={{
+                          background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                          boxShadow: '0 4px 12px rgba(5, 150, 105, 0.2)',
+                          fontFamily: "'Poppins', sans-serif",
+                        }}
+                      >
+                        View Course
+                      </Link>
+                    ) : (
+                      <button
+                        onClick={() => handleBuyCourse(course._id, course.title)}
+                        className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white hover:-translate-y-0.5"
+                        style={{
+                          background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                          boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)',
+                          fontFamily: "'Poppins', sans-serif",
+                        }}
+                      >
+                        ₹{course.pricing || 0}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -467,18 +496,31 @@ const Dashboard = () => {
                     {course.category && <span className="flex items-center gap-1">📚 {course.category}</span>}
                   </div>
                   <div className="flex gap-3">
-                    
-                    <button
-                      onClick={() => handleBuyCourse(course._id, course.title)}
-                      className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white hover:-translate-y-0.5"
-                      style={{
-                        background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
-                        boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)',
-                        fontFamily: "'Poppins', sans-serif",
-                      }}
-                    >
-                      ₹{course.pricing || 0}
-                    </button>
+                    {isCoursePurchased(course._id) ? (
+                      <Link
+                        to={`/course/${course._id}`}
+                        className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white hover:-translate-y-0.5 no-underline"
+                        style={{
+                          background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                          boxShadow: '0 4px 12px rgba(5, 150, 105, 0.2)',
+                          fontFamily: "'Poppins', sans-serif",
+                        }}
+                      >
+                        View Course
+                      </Link>
+                    ) : (
+                      <button
+                        onClick={() => handleBuyCourse(course._id, course.title)}
+                        className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white hover:-translate-y-0.5"
+                        style={{
+                          background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                          boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)',
+                          fontFamily: "'Poppins', sans-serif",
+                        }}
+                      >
+                        ₹{course.pricing || 0}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -528,7 +570,11 @@ const Dashboard = () => {
                 >
                   <div className="relative">
                     <img
-                      src={note.image || 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&h=300&fit=crop'}
+                      src={
+                        typeof note.image === 'string'
+                          ? note.image
+                          : note.image?.url || 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&h=300&fit=crop'
+                      }
                       alt={note.title}
                       className="w-full h-[180px] object-cover"
                     />
@@ -561,14 +607,28 @@ const Dashboard = () => {
                       {note.title}
                     </h3>
                     <p className="text-slate-500 text-sm mb-4 leading-relaxed">
-                      {note.isIndependent ? note.category || 'Independent Note' : `From: ${note.courseTitle}`}
+                      {note.isIndependent ? note.category || 'Independent Note' : `From: ${note.courseId ? 'Course' : 'Course'}`}
                     </p>
                     <div className="flex gap-4 mb-4 text-sm text-slate-400">
                       <span className="flex items-center gap-1">📚 {note.level || 'All levels'}</span>
                       <span className="flex items-center gap-1">📁 {note.category || 'General'}</span>
                     </div>
                     <div className="flex gap-3">
-                      {note.isIndependent && note.pricing > 0 ? (
+                      {isNotePurchased(note._id) ? (
+                        <a
+                          href={note.driveLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white hover:-translate-y-0.5 no-underline"
+                          style={{
+                            background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                            boxShadow: '0 4px 12px rgba(5, 150, 105, 0.2)',
+                            fontFamily: "'Poppins', sans-serif",
+                          }}
+                        >
+                          View Notes
+                        </a>
+                      ) : note.isIndependent && note.pricing > 0 ? (
                         <Link
                           to={`/notes/${note._id}`}
                           className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white hover:-translate-y-0.5 no-underline"
@@ -582,7 +642,7 @@ const Dashboard = () => {
                         </Link>
                       ) : (
                         <a
-                          href={note.notesUrl || note.driveLink}
+                          href={note.driveLink}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white hover:-translate-y-0.5 no-underline"

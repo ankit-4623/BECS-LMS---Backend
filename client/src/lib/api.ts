@@ -24,7 +24,7 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     // Debug: Log outgoing requests
-    console.log('[API] Request:', config.method?.toUpperCase(), config.baseURL + config.url);
+    console.log('[API] Request:', config.method?.toUpperCase(), `${config.baseURL || ''}${config.url || ''}`);
     return config;
   },
   (error: AxiosError) => {

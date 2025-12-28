@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { useCourse, useCheckPurchase, useLiveLecture, useCourseNotes } from '../hooks/useCourses';
+import { useCourse, useCheckPurchase, useLiveLecture, useCourseNotes, useRecordedLectures } from '../hooks/useCourses';
 import { useAuth } from '../context/AuthContext';
 import { useCreateOrder, useVerifyPayment } from '../hooks/useOrder';
 import '../types/razorpay.d.ts';
@@ -22,7 +22,10 @@ const CourseDetail = () => {
   const { data: course, isLoading, error, refetch: refetchCourse } = useCourse(courseId || '');
   
   // Fetch live lecture for this course
-  const { data: liveLecture } = useLiveLecture(courseId || '');
+  const { data: liveLectureData } = useLiveLecture(courseId || '');
+  
+  // Fetch recorded lectures for this course
+  const { data: recordedLectures } = useRecordedLectures(courseId || '');
   
   // Fetch course notes (notes attached to this course)
   const { data: courseNotesData } = useCourseNotes(courseId || '');
@@ -293,91 +296,95 @@ const CourseDetail = () => {
           </button>
         </div>
 
-        {/* Video Content - Simple List */}
+        {/* Video Content */}
         {activeTab === 'videos' && (
           <div className="bg-white rounded-[15px] shadow-lg p-6">
-            <h3 className="text-xl font-bold text-slate-800 mb-6" style={{ fontFamily: "'Poppins', sans-serif" }}>Course Videos</h3>
-            {course.curriculum && course.curriculum.filter(l => l.videoUrl).length > 0 ? (
+            <h3 className="text-xl font-bold text-slate-800 mb-6" style={{ fontFamily: "'Poppins', sans-serif" }}>Recorded Videos</h3>
+            {recordedLectures && recordedLectures.length > 0 ? (
               isPurchased ? (
-                <div className="flex flex-col gap-4">
-                  {course.curriculum.filter(lecture => lecture.videoUrl).map((lecture, index) => (
-                    <div key={lecture._id || index} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 hover:border-red-200 hover:bg-red-50/30 transition-all duration-300">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)' }}>
-                          {index + 1}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {recordedLectures.map((lecture, index) => (
+                    <div key={lecture._id} className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200 hover:shadow-lg transition-all duration-300">
+                      <div className="flex items-start gap-4 mb-4">
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold text-white flex-shrink-0" style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' }}>
+                          {lecture.lectureNumber || index + 1}
                         </div>
-                        <div>
-                          <h4 className="font-semibold text-slate-800">{lecture.title}</h4>
-                          <p className="text-sm text-slate-500">⏱️ {lecture.duration || 'N/A'}</p>
+                        <div className="flex-1">
+                          <h4 className="font-bold text-slate-800 text-lg mb-2">{lecture.title}</h4>
+                          <p className="text-slate-600 text-sm mb-2">📚 {lecture.chapterName}</p>
+                          <div className="space-y-2 text-sm text-slate-600">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">⏱️ Duration:</span>
+                              <span>{lecture.duration || 'N/A'}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">👨‍🏫 Instructor:</span>
+                              <span>{lecture.instructorId?.userName || 'Instructor'}</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {lecture.notesUrl && (
-                          <a
-                            href={lecture.notesUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="py-2 px-4 rounded-lg font-semibold text-sm text-center no-underline transition-all duration-300 hover:-translate-y-0.5 flex items-center gap-2 text-slate-700 bg-slate-100 hover:bg-slate-200"
-                          >
-                            📄 Notes
-                          </a>
-                        )}
-                        {lecture.videoUrl && (
-                          <a
-                            href={lecture.videoUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="py-2 px-4 rounded-lg font-semibold text-sm text-center no-underline transition-all duration-300 hover:-translate-y-0.5 flex items-center gap-2 text-white"
-                            style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)' }}
-                          >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M8 5v14l11-7z"/>
-                            </svg>
-                            Watch Video
-                          </a>
-                        )}
-                      </div>
+                      <a
+                        href={lecture.videoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-3 px-4 rounded-lg font-semibold text-sm text-center no-underline transition-all duration-300 hover:-translate-y-0.5 flex items-center justify-center gap-2 text-white"
+                        style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)' }}
+                      >
+                        🎥 Watch Video
+                      </a>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <div className="text-4xl mb-4">🔒</div>
-                  <h4 className="text-lg font-bold text-slate-800 mb-2">Videos Available</h4>
-                  <p className="text-slate-600 mb-6">Purchase this course to access all recorded videos.</p>
-                  
-                  {/* Preview list of videos (locked) */}
-                  <div className="flex flex-col gap-3 mb-6 max-w-lg mx-auto">
-                    {course.curriculum.slice(0, 5).map((lecture, index) => (
-                      <div key={lecture._id || index} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200 text-left">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ background: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)' }}>
-                          🔒
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h5 className="font-medium text-slate-600 text-sm truncate">{lecture.title}</h5>
-                          <p className="text-xs text-slate-400">⏱️ {lecture.duration || 'N/A'}</p>
-                        </div>
-                      </div>
-                    ))}
-                    {course.curriculum.length > 5 && (
-                      <p className="text-sm text-slate-500">...and {course.curriculum.length - 5} more videos</p>
-                    )}
+                <div>
+                  <div className="text-center py-8 mb-8">
+                    <div className="text-4xl mb-4">🔒</div>
+                    <h4 className="text-lg font-bold text-slate-800 mb-2">Recorded Videos Available!</h4>
+                    <p className="text-slate-600 mb-6">Purchase this course to access all recorded videos.</p>
+                    <button
+                      onClick={handlePurchase}
+                      disabled={isProcessingPayment}
+                      className={`py-3 px-8 rounded-lg font-semibold text-white transition-all duration-300 ${isProcessingPayment ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5'}`}
+                      style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 15px rgba(220, 38, 38, 0.3)' }}
+                    >
+                      {isProcessingPayment ? 'Processing...' : `Buy Now - ₹${course.pricing || 0}`}
+                    </button>
                   </div>
-                  
-                  <button
-                    onClick={handlePurchase}
-                    disabled={isProcessingPayment}
-                    className={`py-3 px-8 rounded-lg font-semibold text-white transition-all duration-300 ${isProcessingPayment ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5'}`}
-                    style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 15px rgba(220, 38, 38, 0.3)' }}
-                  >
-                    {isProcessingPayment ? 'Processing...' : `Buy Now - ₹${course.pricing || 0}`}
-                  </button>
+
+                  {/* Preview of recorded videos (locked) */}
+                  <div className="bg-slate-50 rounded-xl p-6">
+                    <h4 className="text-lg font-bold text-slate-800 mb-4">Available Recorded Videos</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {recordedLectures.slice(0, 6).map((lecture) => (
+                        <div key={lecture._id} className="flex items-center gap-4 p-4 rounded-lg bg-white border border-slate-200">
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0" style={{ background: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)' }}>
+                            🔒
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h5 className="font-semibold text-slate-700 truncate">{lecture.title}</h5>
+                            <p className="text-sm text-slate-500 truncate">📚 {lecture.chapterName}</p>
+                            <div className="flex items-center gap-4 text-xs text-slate-400 mt-1">
+                              <span>⏱️ {lecture.duration || 'N/A'}</span>
+                              <span>👨‍🏫 {lecture.instructorId?.userName || 'Instructor'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {recordedLectures.length > 6 && (
+                        <div className="col-span-full text-center">
+                          <p className="text-sm text-slate-500">...and {recordedLectures.length - 6} more videos</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )
             ) : (
               <div className="text-center py-8 text-slate-500">
                 <div className="text-4xl mb-4">📹</div>
-                <p>No videos available yet</p>
+                <p>No recorded videos available yet</p>
+                <p className="text-sm text-slate-400 mt-2">Videos will be added soon!</p>
               </div>
             )}
           </div>
@@ -386,46 +393,108 @@ const CourseDetail = () => {
         {/* Live Classes Content */}
         {activeTab === 'live' && (
           <div className="bg-white rounded-[15px] shadow-lg p-6">
-            <h3 className="text-xl font-bold text-slate-800 mb-6" style={{ fontFamily: "'Poppins', sans-serif" }}>Live Class</h3>
-            {liveLecture ? (
+            <h3 className="text-xl font-bold text-slate-800 mb-6" style={{ fontFamily: "'Poppins', sans-serif" }}>Live Classes</h3>
+            {liveLectureData?.allLectures && liveLectureData.allLectures.length > 0 ? (
               isPurchased ? (
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-lg font-bold text-slate-800 mb-2">Join Live Session</h4>
-                      <p className="text-slate-600 text-sm mb-2">Click the button to join the live class for this course.</p>
-                      <p className="text-slate-500 text-xs">👨‍🏫 Instructor: {course.teachers?.teacherName || 'Instructor'}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {liveLectureData.allLectures.map((lecture: any, index: number) => (
+                    <div key={lecture._id || index} className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200 hover:shadow-lg transition-all duration-300">
+                      <div className="flex items-start gap-4 mb-4">
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold text-white flex-shrink-0" style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)' }}>
+                          🔴
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-bold text-slate-800 text-lg mb-2">{lecture.title || `Live Session ${index + 1}`}</h4>
+                          {lecture.description && (
+                            <p className="text-slate-600 text-sm mb-3">{lecture.description}</p>
+                          )}
+                          <div className="space-y-2 text-sm text-slate-600">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">📅 Date:</span>
+                              <span>{new Date(lecture.scheduledAt).toLocaleDateString('en-US', { 
+                                weekday: 'long', 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric' 
+                              })}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">⏰ Time:</span>
+                              <span>{new Date(lecture.scheduledAt).toLocaleTimeString('en-US', { 
+                                hour: '2-digit', 
+                                minute: '2-digit',
+                                hour12: true 
+                              })}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">👨‍🏫 Instructor:</span>
+                              <span>{lecture.instructorName || course.teachers?.teacherName || 'Instructor'}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">⏱️ Duration:</span>
+                              <span>{lecture.duration || 60} minutes</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <a
+                        href={lecture.meetingLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-3 px-4 rounded-lg font-semibold text-sm text-center no-underline transition-all duration-300 hover:-translate-y-0.5 flex items-center justify-center gap-2 text-white"
+                        style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)' }}
+                      >
+                        🔴 Join Live Class
+                      </a>
                     </div>
-                    <a
-                      href={liveLecture.gmeetinglink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="py-3 px-6 rounded-lg font-semibold text-white no-underline transition-all duration-300 hover:-translate-y-0.5 flex items-center gap-2"
-                      style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)' }}
-                    >
-                      🔴 Join Live Class
-                    </a>
-                  </div>
+                  ))}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <div className="text-4xl mb-4">🔒</div>
-                  <h4 className="text-lg font-bold text-slate-800 mb-2">Live Class Available!</h4>
-                  <p className="text-slate-600 mb-4">Purchase this course to access live classes.</p>
-                  <button
-                    onClick={handlePurchase}
-                    disabled={isProcessingPayment}
-                    className={`py-3 px-8 rounded-lg font-semibold text-white transition-all duration-300 ${isProcessingPayment ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5'}`}
-                    style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 15px rgba(220, 38, 38, 0.3)' }}
-                  >
-                    {isProcessingPayment ? 'Processing...' : `Buy Now - ₹${course.pricing || 0}`}
-                  </button>
+                <div>
+                  <div className="text-center py-8 mb-8">
+                    <div className="text-4xl mb-4">🔒</div>
+                    <h4 className="text-lg font-bold text-slate-800 mb-2">Live Classes Available!</h4>
+                    <p className="text-slate-600 mb-6">Purchase this course to access live classes.</p>
+                    <button
+                      onClick={handlePurchase}
+                      disabled={isProcessingPayment}
+                      className={`py-3 px-8 rounded-lg font-semibold text-white transition-all duration-300 ${isProcessingPayment ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5'}`}
+                      style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 15px rgba(220, 38, 38, 0.3)' }}
+                    >
+                      {isProcessingPayment ? 'Processing...' : `Buy Now - ₹${course.pricing || 0}`}
+                    </button>
+                  </div>
+                  
+                  {/* Preview of upcoming live classes */}
+                  <div className="bg-slate-50 rounded-xl p-6">
+                    <h4 className="text-lg font-bold text-slate-800 mb-4">Upcoming Live Classes</h4>
+                    <div className="space-y-4">
+                      {liveLectureData.allLectures.slice(0, 3).map((lecture: any, index: number) => (
+                        <div key={lecture._id || index} className="flex items-center gap-4 p-4 rounded-lg bg-white border border-slate-200">
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0" style={{ background: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)' }}>
+                            🔒
+                          </div>
+                          <div className="flex-1">
+                            <h5 className="font-semibold text-slate-700">{lecture.title || `Live Session ${index + 1}`}</h5>
+                            <div className="flex items-center gap-4 text-sm text-slate-500 mt-1">
+                              <span>📅 {new Date(lecture.scheduledAt).toLocaleDateString()}</span>
+                              <span>⏰ {new Date(lecture.scheduledAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                              <span>👨‍🏫 {lecture.instructorName || course.teachers?.teacherName || 'Instructor'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {liveLectureData.allLectures.length > 3 && (
+                        <p className="text-sm text-slate-500 text-center">...and {liveLectureData.allLectures.length - 3} more sessions</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )
             ) : (
               <div className="text-center py-8 text-slate-500">
                 <div className="text-4xl mb-4">📅</div>
-                <p>No live class scheduled for this course yet.</p>
+                <p>No live classes scheduled for this course yet.</p>
                 <p className="text-sm text-slate-400 mt-2">Check back later for updates!</p>
               </div>
             )}

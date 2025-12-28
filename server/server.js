@@ -15,6 +15,7 @@ const studentCoursesRoutes = require("./routes/student-routes/student-courses-ro
 const studentCourseProgressRoutes = require("./routes/student-routes/course-progress-routes");
 const studentNoteRoutes = require("./routes/student-routes/note-routes");
 const studentLiveLectureRoutes = require("./routes/student-routes/live-lecture-routes");
+const studentRecordedLectureRoutes = require("./routes/student-routes/recorded-lecture-routes");
 
 const app = express();
 const PORT = process.env.PORT ;
@@ -72,6 +73,7 @@ app.use("/student/courses-bought", studentCoursesRoutes);
 app.use("/student/course-progress", studentCourseProgressRoutes);
 app.use("/student/notes", studentNoteRoutes);
 app.use("/student/live-lecture", studentLiveLectureRoutes);
+app.use("/student/recorded-lecture", studentRecordedLectureRoutes);
 
 // 404 handler - catches all unmatched routes
 app.use((req, res, next) => {

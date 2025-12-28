@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getAllCourses, getCourseDetails, getPurchasedCourses, checkCoursePurchase, getLiveLectureByCourse } from '../services/course.service';
+import { getAllCourses, getCourseDetails, getPurchasedCourses, checkCoursePurchase, getLiveLectureByCourse, getRecordedLecturesByCourse } from '../services/course.service';
 import { getAllIndependentNotes, getCourseNotes } from '../services/note.service';
 import type { Course } from '../lib/schemas';
 
@@ -56,9 +56,20 @@ export const useLiveLecture = (courseId: string) => {
   return useQuery({
     queryKey: ['liveLecture', courseId],
     queryFn: () => getLiveLectureByCourse(courseId),
-    select: (data) => data.data,
+    select: (data) => data,
     enabled: !!courseId,
     retry: false, // Don't retry if no live lecture exists
+  });
+};
+
+// Hook to get recorded lectures by course ID
+export const useRecordedLectures = (courseId: string) => {
+  return useQuery({
+    queryKey: ['recordedLectures', courseId],
+    queryFn: () => getRecordedLecturesByCourse(courseId),
+    select: (data) => data.data || [],
+    enabled: !!courseId,
+    retry: false, // Don't retry if no recorded lectures exist
   });
 };
 

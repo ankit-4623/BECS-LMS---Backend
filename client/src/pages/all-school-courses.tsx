@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useCourses } from '../hooks/useCourses';
+import { useCourses, usePurchasedCourses } from '../hooks/useCourses';
 import { useAuth } from '../context/AuthContext';
 
 const AllSchoolCourses = () => {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { data: allCourses = [], isLoading, error } = useCourses();
+  
+  // Fetch purchased courses
+  const { data: purchasedCourses = [] } = usePurchasedCourses(user?._id);
   
   const [scrolled, setScrolled] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,6 +41,11 @@ const AllSchoolCourses = () => {
 
   const openPreview = (courseId: string, title: string, teacher?: string) => {
     alert(`📚 ${title}\n\n👨‍🏫 Instructor: ${teacher || 'BECS Expert'}\n\nClick "Buy Now" to enroll!`);
+  };
+
+  // Check if a course is purchased
+  const isCoursePurchased = (courseId: string) => {
+    return purchasedCourses.some(course => course.courseId === courseId);
   };
 
   const filteredCourses = schoolCourses.filter((course) => {
@@ -161,13 +169,27 @@ const AllSchoolCourses = () => {
                     >
                       Preview
                     </button>
-                    <button 
-                      onClick={() => handleBuyCourse(course._id)} 
-                      className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white hover:-translate-y-0.5" 
-                      style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)', fontFamily: "'Poppins', sans-serif" }}
-                    >
-                      ₹{course.pricing || 0}
-                    </button>
+                    {isCoursePurchased(course._id) ? (
+                      <Link
+                        to={`/course/${course._id}`}
+                        className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white hover:-translate-y-0.5 no-underline"
+                        style={{
+                          background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                          boxShadow: '0 4px 12px rgba(5, 150, 105, 0.2)',
+                          fontFamily: "'Poppins', sans-serif"
+                        }}
+                      >
+                        View Course
+                      </Link>
+                    ) : (
+                      <button 
+                        onClick={() => handleBuyCourse(course._id)} 
+                        className="flex-1 py-2.5 px-4 rounded-lg font-semibold cursor-pointer transition-all duration-300 text-sm text-center text-white hover:-translate-y-0.5" 
+                        style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)', fontFamily: "'Poppins', sans-serif" }}
+                      >
+                        ₹{course.pricing || 0}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

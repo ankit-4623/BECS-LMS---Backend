@@ -77,25 +77,63 @@ export const checkCoursePurchase = async (
   return response.data;
 };
 
+export interface BackendLiveLectureResponse {
+  success: boolean;
+  data: LiveLecture | null;
+  allLectures: LiveLecture[];
+  message?: string;
+}
+
 // Live Lecture interface
 export interface LiveLecture {
   _id: string;
   courseId: string;
-  gmeetinglink: string;
+  meetingLink: string;
+  title?: string;
+  description?: string;
+  scheduledAt: string;
+  duration?: number;
+  instructorId?: string;
+  instructorName?: string;
+  status?: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface BackendLiveLectureResponse {
+export interface RecordedLecture {
+  _id: string;
+  courseId: string;
+  title: string;
+  chapterName: string;
+  lectureNumber: number;
+  videoUrl: string;
+  duration: string;
+  instructorId: {
+    _id: string;
+    userName: string;
+  };
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BackendRecordedLecturesResponse {
   success: boolean;
-  data: LiveLecture;
-  message?: string;
+  data: RecordedLecture[];
 }
 
 // Get live lecture by course ID (using student endpoint)
 export const getLiveLectureByCourse = async (courseId: string): Promise<BackendLiveLectureResponse> => {
   const response = await api.get<BackendLiveLectureResponse>(
     `/student/live-lecture/course/${courseId}`
+  );
+  return response.data;
+};
+
+// Get recorded lectures by course ID
+export const getRecordedLecturesByCourse = async (courseId: string): Promise<BackendRecordedLecturesResponse> => {
+  const response = await api.get<BackendRecordedLecturesResponse>(
+    `/student/recorded-lecture/course/${courseId}`
   );
   return response.data;
 };
