@@ -4,6 +4,7 @@ import Home from './pages/home'
 import Login from './pages/login'
 import Signup from './pages/signup'
 import ForgotPassword from './pages/forgetpassword'
+import Verify from './pages/verify'
 import Dashboard from './pages/dashboard'
 import Profile from './pages/profile'
 import AllCourses from './pages/all-courses'
@@ -22,6 +23,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/verify" element={<Verify />} />
         
         {/* Semi-Public Routes (accessible without auth but show different content if logged in) */}
         <Route path="/courses" element={<AllCourses />} />

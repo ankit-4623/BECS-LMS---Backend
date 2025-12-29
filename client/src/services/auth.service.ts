@@ -37,3 +37,17 @@ export const checkAuth = async (): Promise<ApiResponse<AuthCheckResponse>> => {
   const response = await api.get<ApiResponse<AuthCheckResponse>>('/auth/check-auth');
   return response.data;
 };
+
+// Verify OTP
+export interface VerifyOtpResponse {
+  user: {
+    _id: string;
+    userName: string;
+    userEmail: string;
+  };
+}
+
+export const verifyOtp = async (data: { userEmail: string; otp: string }): Promise<ApiResponse<VerifyOtpResponse>> => {
+  const response = await api.post<ApiResponse<VerifyOtpResponse>>('/auth/verify', data);
+  return response.data;
+};

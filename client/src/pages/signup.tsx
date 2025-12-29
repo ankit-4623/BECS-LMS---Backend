@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { signupSchema } from '../lib/schemas';
+import type { SignupInput } from '../lib/schemas';
 import { ZodError } from 'zod';
+import { verifyOtp, registerUser } from '../services/auth.service';
 
 interface ValidationState {
   firstName: boolean;
@@ -220,11 +222,23 @@ const Signup = () => {
     }
   };
 
+  // Hold validated signup data until user clicks "Send verification code"
+  const [pendingSignupData, setPendingSignupData] = useState<SignupInput | null>(null);
+
+  // OTP / resend related state
+  const [showOtpSection, setShowOtpSection] = useState(false);
+  const [otp, setOtp] = useState('');
+  const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const [isResending, setIsResending] = useState(false);
+  const [passwordForResend, setPasswordForResend] = useState('');
+  const [errorOtpMessage, setErrorOtpMessage] = useState('');
+  const [successOtpMessage, setSuccessOtpMessage] = useState('');
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting || isLoading) return;
 
-    setIsSubmitting(true);
     setErrorMessage('');
     setSuccessMessage('');
 
@@ -241,57 +255,11 @@ const Signup = () => {
       // Check terms
       if (!formData.terms) {
         setErrorMessage('Please accept the terms and conditions.');
-        setIsSubmitting(false);
         return;
       }
 
-      // Call signup API
-      await signup(validatedData);
-      
-      setSuccessMessage('Account created successfully! Redirecting to login...');
-      
-      // Reset form
-      setFormData({
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        course: '',
-        password: '',
-        confirmPassword: '',
-        terms: false,
-      });
-      setValidationState({
-        firstName: false,
-        lastName: false,
-        email: false,
-        phone: false,
-        course: false,
-        password: false,
-        confirmPassword: false,
-        terms: false,
-      });
-      setPasswordRequirements({
-        length: false,
-        uppercase: false,
-        lowercase: false,
-        number: false,
-        special: false,
-      });
-      setPasswordStrength({ percentage: 0, text: '', class: '' });
-      setFieldFeedback({
-        firstName: { message: '', type: '' },
-        lastName: { message: '', type: '' },
-        email: { message: '', type: '' },
-        phone: { message: '', type: '' },
-        course: { message: '', type: '' },
-        confirmPassword: { message: '', type: '' },
-      });
-
-      // Redirect to login after successful signup
-      setTimeout(() => {
-        navigate('/login');
-      }, 2000);
+      // Send OTP immediately and open the inline OTP section
+      await handleSendVerification(validatedData);
 
     } catch (err) {
       if (err instanceof ZodError) {
@@ -302,6 +270,149 @@ const Signup = () => {
         setErrorMessage(err.message);
       } else {
         setErrorMessage('An unexpected error occurred. Please try again.');
+      }
+    }
+  };
+
+  useEffect(() => {
+    let timer: number | undefined;
+    if (resendCountdown > 0) {
+      timer = window.setInterval(() => {
+        setResendCountdown((c) => {
+          if (c <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return c - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [resendCountdown]);
+
+  const handleSendVerification = async (data?: SignupInput | Event) => {
+    // Defensive: if the function was called from an onClick without wrapping, a DOM Event may be passed as `data`.
+    // Detect that case and ignore the event — use the stored `pendingSignupData` instead.
+    const maybe = data as any;
+    const usedData: SignupInput | null = maybe && typeof maybe.userEmail === 'string' ? (maybe as SignupInput) : pendingSignupData;
+    if (!usedData) return;
+    if (isSubmitting || isLoading) return;
+
+    setIsSubmitting(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      // Call signup API (server will send OTP to email)
+      await signup(usedData as any);
+
+      // keep validated data for later verification
+      setPendingSignupData(usedData);
+
+      setSuccessMessage('OTP sent to your email! Enter it below to complete registration.');
+
+      // Keep password locally for resend (do not persist beyond session)
+      setPasswordForResend((usedData as any).password || '');
+
+      // NOTE: Do not clear password fields here — keep them so user doesn't lose their typed password
+      // (if you want stricter security, consider clearing after successful verification instead)
+
+
+      // Show OTP section inline and start cooldown
+      setShowOtpSection(true);
+      setResendCountdown(60);
+      setOtp('');
+      setTimeout(() => inputsRef.current[0]?.focus(), 50);
+    } catch (err) {
+      if (err instanceof Error) {
+        setErrorMessage(err.message);
+      } else {
+        setErrorMessage('An unexpected error occurred while sending OTP.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // OTP handlers (same behavior as /verify page)
+  const handleOtpInputChange = (index: number, value: string) => {
+    const digit = value.replace(/\D/g, '').slice(-1);
+    const chars = otp.split('');
+    while (chars.length < 6) chars.push('');
+    chars[index] = digit || '';
+    setOtp(chars.join(''));
+
+    if (digit && index < 5) {
+      inputsRef.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      const chars = otp.split('');
+      while (chars.length < 6) chars.push('');
+      if (chars[index]) {
+        chars[index] = '';
+        setOtp(chars.join(''));
+      } else if (index > 0) {
+        inputsRef.current[index - 1]?.focus();
+        const prev = otp.split('');
+        while (prev.length < 6) prev.push('');
+        prev[index - 1] = '';
+        setOtp(prev.join(''));
+      }
+    } else if (e.key === 'ArrowLeft' && index > 0) {
+      inputsRef.current[index - 1]?.focus();
+    } else if (e.key === 'ArrowRight' && index < 5) {
+      inputsRef.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const paste = e.clipboardData.getData('text').trim();
+    const digits = paste.replace(/\D/g, '').slice(0, 6).split('');
+    if (digits.length) {
+      const chars = [...digits];
+      while (chars.length < 6) chars.push('');
+      setOtp(chars.join(''));
+      const focusIndex = Math.min(digits.length, 5);
+      inputsRef.current[focusIndex]?.focus();
+    }
+  };
+
+  const submitOtp = async () => {
+    if (isSubmitting) return;
+    setErrorOtpMessage('');
+    setSuccessOtpMessage('');
+
+    if (!pendingSignupData) {
+      setErrorOtpMessage('No pending signup data found.');
+      return;
+    }
+    if (!otp || !/^\d{6}$/.test(otp)) {
+      setErrorOtpMessage('Please enter the 6-digit OTP');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await verifyOtp({ userEmail: pendingSignupData.userEmail, otp });
+      if (response.success) {
+        setSuccessOtpMessage('Registration complete! Redirecting to login...');
+        setTimeout(() => navigate('/login'), 1200);
+      } else {
+        setErrorOtpMessage(response.message || 'Verification failed');
+      }
+    } catch (err: any) {
+      console.error('[Signup] OTP verification error:', err);
+      if (!err?.response) {
+        setErrorOtpMessage('Unable to reach the server. Please check your network or try again later.');
+      } else {
+        setErrorOtpMessage(err?.response?.data?.message || err.message || 'Verification failed');
       }
     } finally {
       setIsSubmitting(false);
@@ -865,37 +976,118 @@ const Signup = () => {
               </label>
             </div>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={!isFormValid || isSubmitting}
-              className={`w-full text-white py-4 rounded-xl text-lg font-semibold transition-all duration-300 mb-6 relative ${
-                !isFormValid || isSubmitting
-                  ? 'opacity-60 cursor-not-allowed'
-                  : 'hover:-translate-y-0.5'
-              }`}
-              style={{
-                background: 'linear-gradient(135deg, #c53030, #a02626)',
-                fontFamily: 'inherit',
-              }}
-              onMouseOver={(e) => {
-                if (isFormValid && !isSubmitting) {
-                  e.currentTarget.style.boxShadow = '0 10px 30px rgba(197, 48, 48, 0.3)';
-                }
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              {isSubmitting ? (
-                <span className="flex items-center justify-center gap-2">
-                  Creating Account...
-                  <span className="loading-spinner" />
-                </span>
-              ) : (
-                'Create Account'
+            <div className="mb-4">
+              <button
+                type="submit"
+                disabled={!isFormValid || isSubmitting}
+                className={`w-full text-white py-4 rounded-xl text-lg font-semibold transition-all duration-300 mb-2 relative ${
+                  !isFormValid || isSubmitting
+                    ? 'opacity-60 cursor-not-allowed'
+                    : 'hover:-translate-y-0.5'
+                }`}
+                style={{
+                  background: 'linear-gradient(135deg, #c53030, #a02626)',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {isSubmitting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    Processing...
+                    <span className="loading-spinner" />
+                  </span>
+                ) : pendingSignupData ? (
+                  'Details Ready'
+                ) : (
+                  'Proceed to Verify'
+                )}
+              </button>
+
+              {pendingSignupData && (
+                <div className="text-center mt-3">
+                  <div className="grid grid-cols-2 gap-3">
+
+                    {showOtpSection && (
+                      <div className="col-span-2 mt-4 p-4 rounded-lg bg-gray-50 border border-slate-100">
+                        <p className="text-sm text-slate-600 mb-3">Enter the 6-digit code sent to <strong>{pendingSignupData.userEmail}</strong></p>
+
+                        <div className="flex gap-3 justify-center mb-3" onPaste={handleOtpPaste} role="group" aria-label="OTP input">
+                          {[0, 1, 2, 3, 4, 5].map((i) => (
+                            <input
+                              key={i}
+                              aria-label={`Digit ${i + 1}`}
+                              inputMode="numeric"
+                              pattern="\d*"
+                              maxLength={1}
+                              value={otp[i] || ''}
+                              onChange={(e) => handleOtpInputChange(i, e.target.value)}
+                              onKeyDown={(e) => handleOtpKeyDown(e, i)}
+                              onPaste={(e) => handleOtpPaste(e)}
+                              className="otp-box w-12 h-14 flex items-center justify-center text-lg font-medium text-center rounded-lg border border-slate-200 transition-transform duration-150 focus:outline-none focus:ring-2 focus:ring-red-400"
+                            />
+                          ))}
+                        </div>
+
+                        {errorOtpMessage && <div className="text-sm text-red-600 mb-2">{errorOtpMessage}</div>}
+                        {successOtpMessage && <div className="text-sm text-green-600 mb-2">{successOtpMessage}</div>}
+
+                        {!passwordForResend && (
+                          <div className="mb-2">
+                            <input
+                              type="password"
+                              value={passwordForResend}
+                              onChange={(e) => setPasswordForResend(e.target.value)}
+                              placeholder="Password (required to resend)"
+                              className="w-full px-3 py-2 rounded border border-slate-200"
+                            />
+                          </div>
+                        )}
+
+                        <div className="flex gap-3">
+                          <button type="button" onClick={submitOtp} disabled={isSubmitting} className="flex-1 bg-red-600 text-white py-2 rounded">{isSubmitting ? 'Verifying...' : 'Verify OTP'}</button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setErrorOtpMessage('');
+                              setSuccessOtpMessage('');
+                              const p = passwordForResend;
+                              if (!p) {
+                                setErrorOtpMessage('Password is required to resend OTP.');
+                                return;
+                              }
+                              setIsResending(true);
+                              try {
+                                await registerUser({ userName: pendingSignupData.userName, userEmail: pendingSignupData.userEmail, password: p, confirmPassword: p });
+                                setSuccessOtpMessage('OTP resent to your email');
+                                setOtp('');
+                                setTimeout(() => inputsRef.current[0]?.focus(), 50);
+                                setResendCountdown(60);
+                              } catch (err: any) {
+                                setErrorOtpMessage(err?.response?.data?.message || err.message || 'Resend failed');
+                                if (err?.response?.status === 429) setResendCountdown(60);
+                              } finally {
+                                setIsResending(false);
+                              }
+                            }}
+                            disabled={resendCountdown > 0 || isResending}
+                            className={`px-4 py-2 rounded ${resendCountdown > 0 ? 'bg-slate-200 text-slate-400' : 'bg-white border border-slate-200'}`}
+                          >
+                            {isResending ? 'Resending...' : resendCountdown > 0 ? `Resend in ${resendCountdown}s` : 'Resend OTP'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => { setPendingSignupData(null); setShowOtpSection(false); }}
+                      className="col-span-2 w-full bg-transparent text-slate-500 py-3 rounded-xl underline"
+                    >
+                      Edit details
+                    </button>
+                  </div>
+                </div>
               )}
-            </button>
+            </div>
           </form>
 
           {/* Divider */}
