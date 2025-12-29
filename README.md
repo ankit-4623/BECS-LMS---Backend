@@ -1,2 +1,0 @@
-# BECS-LMS---Backend
-ddd
