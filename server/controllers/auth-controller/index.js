@@ -10,8 +10,13 @@ const { publishToQueue } = require("../../config/rabbitmq");
 const registerUser = async (req, res) => {
   const { userName, userEmail, password } = req.body;
 
+  // Basic validation: userName and userEmail are required; password is optional for resend
+  if (!userName || !userEmail) {
+    return res.status(400).json({ success: false, message: 'userName and userEmail are required' });
+  }
+
   const existingUser = await User.findOne({
-    $or: [{ userEmail }, { userName }],
+    $or: [{ email: userEmail }, { userName }],
   });
 
   if (existingUser) {
@@ -21,8 +26,9 @@ const registerUser = async (req, res) => {
     });
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
-
+  // If password not provided (resend flow), generate a secure random one and hash it
+  const plainPassword = password && typeof password === 'string' && password.length ? password : require('crypto').randomBytes(16).toString('hex');
+  const hashedPassword = await bcrypt.hash(plainPassword, 10);
 
   const rateLimitKey = `otp:ratelimit:${userEmail}`;
   const rateLimit = await redisClient.get(rateLimitKey);
@@ -32,13 +38,15 @@ const registerUser = async (req, res) => {
       message: "Too many requests. Please try again later.",
     });
   }
+
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   const otpKey = `otp:${userEmail}`;
   await redisClient.set(
     otpKey,
     JSON.stringify({
       otp,
-      userName,      
+      userName,
+      userEmail,
       password: hashedPassword,
     }),
     {
@@ -65,9 +73,14 @@ const registerUser = async (req, res) => {
 };
 
 const loginUser = async (req, res) => {
-  const { userEmail, password } = req.body;
+  const { userEmail, email: emailFromBody, password } = req.body;
+  const lookupEmail = userEmail || emailFromBody;
 
-  const checkUser = await User.findOne({ userEmail });
+  if (!lookupEmail || !password) {
+    return res.status(400).json({ success: false, message: 'Email and password are required' });
+  }
+
+  const checkUser = await User.findOne({ $or: [{ userEmail: lookupEmail }, { email: lookupEmail }] });
 
   if (!checkUser || !(await bcrypt.compare(password, checkUser.password))) {
     return res.status(401).json({
@@ -80,11 +93,13 @@ const loginUser = async (req, res) => {
   checkUser.lastLogin = new Date();
   await checkUser.save();
 
+  const userEmailToReturn = checkUser.userEmail || checkUser.email;
+
   const accessToken = jwt.sign(
     {
       _id: checkUser._id,
       userName: checkUser.userName,
-      userEmail: checkUser.userEmail,
+      userEmail: userEmailToReturn,
       role: checkUser.role,
     },
     process.env.JWT_SECRET || "JWT_SECRET",
@@ -99,7 +114,7 @@ const loginUser = async (req, res) => {
       user: {
         _id: checkUser._id,
         userName: checkUser.userName,
-        userEmail: checkUser.userEmail,
+        userEmail: userEmailToReturn,
         role: checkUser.role,
       },
     },
@@ -108,17 +123,17 @@ const loginUser = async (req, res) => {
 
 const logoutUser = async (req, res) => {
   try {
-    // Get user from auth middleware
+    
     const userId = req.user?._id;
 
     if (userId) {
-      // Update last activity timestamp
+      
       await User.findByIdAndUpdate(userId, {
         lastLogin: new Date(),
       });
     }
 
-    // Send success response
+    
     res.status(200).json({
       success: true,
       message: "Logged out successfully",
@@ -134,45 +149,78 @@ const logoutUser = async (req, res) => {
 };
 
 const verifyOtp = async (req, res) => {
-  const { userEmail, otp } = req.body;
+  try {
+    const { userEmail, otp } = req.body;
+    console.log(req.body)
 
-  const otpKey = `otp:${userEmail}`;
-  const data = await redisClient.get(otpKey);
+    if (!userEmail || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and OTP are required",
+      });
+    }
 
-  if (!data) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid or expired OTP",
+    const otpKey = `otp:${userEmail}`;
+    const data = await redisClient.get(otpKey);
+
+    if (!data) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired OTP",
+      });
+    }
+
+    const parsedData = JSON.parse(data);
+
+    if (parsedData.otp !== otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP",
+      });
+    }
+
+    const existingUser = await User.findOne({ $or: [{ userEmail: userEmail }, { email: userEmail }] });
+    if (existingUser) {      
+      await redisClient.del(otpKey);
+      return res.status(409).json({
+        success: false,
+        message: "User already registered",
+      });
+    }
+
+    const newUser = await User.create({
+      userName: parsedData.userName,
+      userEmail: userEmail,
+      email: userEmail,
+      password: parsedData.password,
     });
-  } 
-  const parsedData = JSON.parse(data);
 
-  if (parsedData.otp !== otp) {
-    return res.status(400).json({
+    await redisClient.del(otpKey);
+
+    return res.status(201).json({
+      success: true,
+      message: "User registered successfully",
+      user: {
+        _id: newUser._id,
+        userName: newUser.userName,
+        userEmail: newUser.userEmail,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    if (error && error.code === 11000) {
+      
+      return res.status(409).json({
+        success: false,
+        message: "User with this email already exists",
+      });
+    }
+    return res.status(500).json({
       success: false,
-      message: "Invalid OTP",
+      message: "Internal server error",
     });
   }
-
-  const newUser = new User({
-    userName: parsedData.userName,
-    userEmail,
-    password: parsedData.password,
-  });
-
-  await newUser.save();
-
-  await redisClient.del(otpKey);
-
-  return res.status(201).json({
-    success: true,
-    message: "User registered successfully",
-    user: {
-      _id: newUser._id,
-      userName: newUser.userName,
-      userEmail: newUser.userEmail,
-    },
-  });
 };
+
 
 module.exports = { registerUser, loginUser, logoutUser, verifyOtp };
