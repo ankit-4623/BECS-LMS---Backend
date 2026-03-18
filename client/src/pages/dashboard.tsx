@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCourses, usePurchasedCourses } from '../hooks/useCourses';
 import { useIndependentNotes, usePurchasedNotes } from '../hooks/useNotes';
@@ -28,7 +28,7 @@ const Dashboard = () => {
   const { data: allNotes = [], isLoading: notesLoading } = useIndependentNotes();
 
   // Fetch purchased notes from API
-  const { data: purchasedNotes = [], isLoading: purchasedNotesLoading } = usePurchasedNotes(user?._id);
+  const { data: purchasedNotes = [] } = usePurchasedNotes(user?._id);
 
   useEffect(() => {
     // Scroll listener
@@ -39,46 +39,7 @@ const Dashboard = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  useEffect(() => {
-    if (isCircuitModalOpen && canvasRef.current) {
-      drawCircuit();
-    }
-  }, [isCircuitModalOpen]);
-
-  const handleBuyCourse = (courseId: string, _courseTitle: string) => {
-    if (!isAuthenticated) {
-      alert('Please login to purchase courses');
-      navigate('/login');
-      return;
-    }
-    // Navigate to course detail page for purchase
-    navigate(`/course/${courseId}`);
-  };
-
-  const openPreview = (_courseId: string, courseTitle: string, teacherName?: string) => {
-    alert(`📚 ${courseTitle}\n\n👨‍🏫 Instructor: ${teacherName || 'Expert Instructor'}\n\nClick "Buy Now" to enroll!`);
-  };
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
-
-  // Check if a course is purchased
-  const isCoursePurchased = (courseId: string) => {
-    return purchasedCourses.some(course => course.courseId === courseId);
-  };
-
-  // Check if a note is purchased
-  const isNotePurchased = (noteId: string) => {
-    return purchasedNotes.some(note => note._id === noteId);
-  };
-
-  const drawCircuit = () => {
+  const drawCircuit = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -150,7 +111,46 @@ const Dashboard = () => {
     ctx.moveTo(446, 330);
     ctx.lineTo(454, 330);
     ctx.stroke();
+  }, [voltage, ledEnabled]);
+
+  useEffect(() => {
+    if (isCircuitModalOpen && canvasRef.current) {
+      drawCircuit();
+    }
+  }, [isCircuitModalOpen, drawCircuit]);
+
+  const handleBuyCourse = (courseId: string, _courseTitle: string) => {
+    if (!isAuthenticated) {
+      alert('Please login to purchase courses');
+      navigate('/login');
+      return;
+    }
+    // Navigate to course detail page for purchase
+    navigate(`/course/${courseId}`);
   };
+
+
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
+  // Check if a course is purchased
+  const isCoursePurchased = (courseId: string) => {
+    return purchasedCourses.some(course => course.courseId === courseId);
+  };
+
+  // Check if a note is purchased
+  const isNotePurchased = (noteId: string) => {
+    return purchasedNotes.some(note => note._id === noteId);
+  };
+
+
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);

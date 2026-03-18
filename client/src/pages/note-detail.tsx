@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 const NoteDetail = () => {
-  const { noteId: _noteId } = useParams<{ noteId: string }>();
+
   const [searchParams] = useSearchParams();
   const [scrolled, setScrolled] = useState(false);
   
