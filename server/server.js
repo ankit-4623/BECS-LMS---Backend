@@ -1,3 +1,5 @@
+const dns = require("node:dns").promises;
+dns.setServers(["8.8.8.8", "1.1.1.1"]);
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
@@ -20,21 +22,18 @@ const { redisdb } = require("./config/redis");
 const { connectRabbitMQ } = require("./config/rabbitmq");
 
 const app = express();
-const PORT = process.env.PORT ;
+const PORT = process.env.PORT;
 const MONGO_URI = process.env.MONGODB_URI;
 
 // CORS configuration
-const allowedOrigins = [
-  process.env.CLIENT_URL,
-  process.env.ADMIN_URL,
-];
+const allowedOrigins = [process.env.CLIENT_URL, process.env.ADMIN_URL];
 
 app.use(
   cors({
     origin: function (origin, callback) {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
-      
+
       if (allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
@@ -44,7 +43,7 @@ app.use(
     methods: ["GET", "POST", "DELETE", "PUT", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
-  })
+  }),
 );
 
 app.use(express.json());
@@ -54,9 +53,6 @@ app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
   next();
 });
-
-
-
 
 //database connection
 mongoose
@@ -101,6 +97,6 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   redisdb();
-  connectRabbitMQ()
+  connectRabbitMQ();
   console.log(`Server is now running on port ${PORT}`);
 });
