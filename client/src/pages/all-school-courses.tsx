@@ -39,7 +39,7 @@ const AllSchoolCourses = () => {
     navigate(`/course/${courseId}`);
   };
 
-  const openPreview = (courseId: string, title: string, teacher?: string) => {
+  const openPreview = (_courseId: string, title: string, teacher?: string) => {
     alert(`📚 ${title}\n\n👨‍🏫 Instructor: ${teacher || 'BECS Expert'}\n\nClick "Buy Now" to enroll!`);
   };
 

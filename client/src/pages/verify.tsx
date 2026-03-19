@@ -13,8 +13,8 @@ const Verify = () => {
   const [isResending, setIsResending] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
   // passwordForResend is optional now — resend no longer requires user to enter password
-  const [passwordForResend, setPasswordForResend] = useState((location.state as any)?.password || '');
-  const [prefillName, setPrefillName] = useState((location.state as any)?.userName || '');
+  const [passwordForResend] = useState((location.state as any)?.password || '');
+  const [prefillName] = useState((location.state as any)?.userName || '');
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -229,7 +229,10 @@ const Verify = () => {
                   try {
                     // Call register route to resend OTP. Password is optional — server will generate one if missing.
                     const body: any = { userName: prefillName || email.split('@')[0], userEmail: email };
-                    if (p) body.password = p, body.confirmPassword = p;
+                    if (p) {
+                      body.password = p;
+                      body.confirmPassword = p;
+                    }
                     await registerUser(body);
                     setSuccessMessage('OTP resent to your email');
                     // Clear OTP boxes and focus first box

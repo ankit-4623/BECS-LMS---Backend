@@ -11,7 +11,7 @@ const CourseDetail = () => {
   const { user, isAuthenticated } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [activeTab, setActiveTab] = useState<'videos' | 'live' | 'notes'>('videos');
-  const [_selectedVideo, _setSelectedVideo] = useState<string | null>(null);
+
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // Hooks for order/payment
