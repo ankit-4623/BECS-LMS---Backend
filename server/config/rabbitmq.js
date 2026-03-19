@@ -17,7 +17,7 @@ const publishToQueue = async (queueName, data) => {
       console.log("Rabbitmq channel is not initalized");
       return;
     }
-    await channel.assertQueue(queueName, { durable: false });
+    await channel.assertQueue(queueName, { durable: true });
     await channel.sendToQueue(queueName, Buffer.from(JSON.stringify(data)));
     console.log("Message sent to queue:", queueName);
   } catch (error) {
