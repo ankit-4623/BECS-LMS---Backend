@@ -8,7 +8,7 @@ export const connectRabbitMQ = async () => {
     const queueName = "send-otp";
     await channel.assertQueue(queueName, { durable: true });
     console.log("✅ Mail Service consumer started, listening for otp emails");
-    
+
     await channel.consume(queueName, async (msg) => {
       if (msg !== null) {
         const { to, subject, body } = JSON.parse(msg.content.toString());
@@ -20,18 +20,16 @@ export const connectRabbitMQ = async () => {
           },
         });
         const mailOptions = {
-          from: process.env.EMAIL,
+          from: "BECS LMS",
           to,
           subject,
           text: body,
         };
         await transporter.sendMail(mailOptions);
         channel.ack(msg);
-          console.log(`OTP mail sent to ${to} ${body}`);
+        console.log(`OTP mail sent to ${to} ${body}`);
       }
     });
-  
-  
   } catch (error) {
     console.log("error in rabbitmq connection");
   }
