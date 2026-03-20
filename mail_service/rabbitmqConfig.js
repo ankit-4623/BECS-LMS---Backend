@@ -4,6 +4,21 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false, 
+  requireTLS: true,
+  auth: {
+    user: process.env.EMAIL,
+    pass: process.env.PASSWORD,
+  },
+  pool: true, 
+  connectionTimeout: 60000,
+  greetingTimeout: 60000,
+  socketTimeout: 60000,
+});
+
 export const connectRabbitMQ = async () => {
   try {
     const connection = await amqp.connect(process.env.RABBITMQ_URL, {
@@ -18,34 +33,20 @@ export const connectRabbitMQ = async () => {
     await channel.consume(queueName, async (msg) => {
       if (msg !== null) {
         const { to, subject, body } = JSON.parse(msg.content.toString());
-        const transporter = nodemailer.createTransport({
-          host: "smtp.gmail.com",
-          port: 465,
-          secure: true, // Use SSL/TLS for port 465
-          auth: {
-            user: process.env.EMAIL,
-            pass: process.env.PASSWORD,
-          },
-          connectionTimeout: 20000, // Increased timeout for cloud environments
-          greetingTimeout: 20000,
-          socketTimeout: 30000,
-        });
+        
         const mailOptions = {
           from: `"BECS LMS" <${process.env.EMAIL}>`,
           to,
           subject,
           text: body,
         };
+
         try {
           await transporter.sendMail(mailOptions);
           channel.ack(msg);
           console.log(`✅ Mail sent successfully to: ${to}`);
         } catch (mailError) {
           console.error(`❌ Failed to send mail to ${to}:`, mailError.message);
-          // Don't ack the message so it stays in queue or move to DLQ? 
-          // For now, let's just log it. If we don't ack, it might retry 
-          // infinitely if the error is persistent.
-          // channel.nack(msg); 
         }
       }
     });
