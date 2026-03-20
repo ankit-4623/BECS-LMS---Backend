@@ -3,7 +3,10 @@ import nodemailer from "nodemailer";
 
 export const connectRabbitMQ = async () => {
   try {
-    const connection = await amqp.connect(process.env.RABBITMQ_URL);
+    const connection = await amqp.connect(process.env.RABBITMQ_URL, {
+      reconnect: true,
+      rejectUnauthorized: true,
+    });
     const channel = await connection.createChannel();
     const queueName = "send-otp";
     await channel.assertQueue(queueName, { durable: true });
@@ -27,7 +30,7 @@ export const connectRabbitMQ = async () => {
         };
         await transporter.sendMail(mailOptions);
         channel.ack(msg);
-        console.log(`OTP mail sent to ${to} ${body}`);
+        // console.log(`OTP mail sent to ${to} ${body}`);
       }
     });
   } catch (error) {
