@@ -17,10 +17,15 @@ export const connectRabbitMQ = async () => {
         const { to, subject, body } = JSON.parse(msg.content.toString());
         const transporter = nodemailer.createTransport({
           service: "gmail",
+          port: 587,
           auth: {
             user: process.env.EMAIL,
             pass: process.env.PASSWORD,
           },
+          connectionTimeout: 10000,
+          greetingTimeout: 10000,
+          socketTimeout: 15000,
+          secure: true,
         });
         const mailOptions = {
           from: "BECS LMS",
