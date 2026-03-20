@@ -1,25 +1,9 @@
 import amqp from "amqplib";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import dotenv from "dotenv";
-
 dotenv.config();
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL,
-    pass: process.env.PASSWORD,
-  },
-  pool: true, 
-  connectionTimeout: 60000,
-  greetingTimeout: 60000,
-  socketTimeout: 60000,
-  logger: true, // Enable detailed SMTP logs in Render console
-  debug: true,  // Print debug info
-  tls: {
-    rejectUnauthorized: false // Bypass potential proxy certificate issues
-  }
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const connectRabbitMQ = async () => {
   try {
@@ -35,16 +19,14 @@ export const connectRabbitMQ = async () => {
     await channel.consume(queueName, async (msg) => {
       if (msg !== null) {
         const { to, subject, body } = JSON.parse(msg.content.toString());
-        
-        const mailOptions = {
-          from: `"BECS LMS" <${process.env.EMAIL}>`,
-          to,
-          subject,
-          text: body,
-        };
 
         try {
-          await transporter.sendMail(mailOptions);
+          await resend.emails.send({
+            from: `BECS LMS <${process.env.EMAIL}>`,
+            to,
+            subject,
+            text: body,
+          });
           channel.ack(msg);
           console.log(`✅ Mail sent successfully to: ${to}`);
         } catch (mailError) {
