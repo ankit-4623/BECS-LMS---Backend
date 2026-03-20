@@ -5,10 +5,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false, 
-  requireTLS: true,
+  service: "gmail",
   auth: {
     user: process.env.EMAIL,
     pass: process.env.PASSWORD,
@@ -17,6 +14,11 @@ const transporter = nodemailer.createTransport({
   connectionTimeout: 60000,
   greetingTimeout: 60000,
   socketTimeout: 60000,
+  logger: true, // Enable detailed SMTP logs in Render console
+  debug: true,  // Print debug info
+  tls: {
+    rejectUnauthorized: false // Bypass potential proxy certificate issues
+  }
 });
 
 export const connectRabbitMQ = async () => {
