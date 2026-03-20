@@ -856,7 +856,7 @@ const Dashboard = () => {
           </div>
         </div>
         <div className="text-center pt-8 border-t border-slate-700 mt-8">
-          <p className="text-sm text-slate-300">© 2025 BECS E-Learning. All rights reserved. | Crafted with excellence</p>
+          <p className="text-sm text-slate-300">© 2026 BECS E-Learning. All rights reserved. | Crafted with excellence</p>
         </div>
       </footer>
     </div>

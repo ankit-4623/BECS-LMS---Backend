@@ -8,7 +8,7 @@ import { ZodError } from 'zod';
 const Login = () => {
   const navigate = useNavigate();
   const { login, isLoading, isAuthenticated, error: authError, clearError } = useAuth();
-  
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -70,12 +70,12 @@ const Login = () => {
 
       // Call login API
       await login(validatedData);
-      
+
       setSuccessMessage('Login successful! Redirecting to dashboard...');
       setTimeout(() => {
         navigate('/dashboard');
       }, 1000);
-      
+
     } catch (err) {
       if (err instanceof ZodError) {
         // Handle Zod validation errors
@@ -98,9 +98,8 @@ const Login = () => {
 
   return (
     <div
-      className={`min-h-screen flex items-center justify-center relative overflow-hidden transition-opacity duration-500 ${
-        pageLoaded ? 'opacity-100' : 'opacity-0'
-      }`}
+      className={`min-h-screen flex items-center justify-center relative overflow-hidden transition-opacity duration-500 ${pageLoaded ? 'opacity-100' : 'opacity-0'
+        }`}
       style={{
         fontFamily: "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif",
         background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%)',
@@ -147,10 +146,10 @@ const Login = () => {
       </div>
 
       {/* Back to Home Button */}
-      <div className="absolute top-8 left-8 z-20">
+      <div className="absolute top-4 left-4 md:top-8 md:left-8 z-20">
         <Link
           to="/"
-          className="flex items-center gap-2 bg-white/90 text-slate-800 px-5 py-2.5 rounded-full font-medium transition-all duration-300 hover:bg-white hover:-translate-y-0.5"
+          className="flex items-center gap-2 bg-white/90 text-slate-800 px-4 py-2 md:px-5 md:py-2.5 rounded-full md:font-medium transition-all duration-300 hover:bg-white hover:-translate-y-0.5 text-sm md:text-base"
           style={{
             boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
             backdropFilter: 'blur(10px)',
@@ -165,7 +164,7 @@ const Login = () => {
 
       {/* Login Container */}
       <div
-        className="login-container relative z-10 w-full max-w-[900px] mx-8 grid grid-cols-1 md:grid-cols-2 rounded-3xl overflow-hidden m-2 h-[97vh]"
+        className="login-container relative z-10 w-full max-w-[900px] mx-4 sm:mx-8 grid grid-cols-1 md:grid-cols-2 rounded-3xl overflow-y-auto md:overflow-hidden my-16 md:my-0 max-h-[85vh] md:h-[97vh]"
         style={{
           background: 'rgba(255, 255, 255, 0.95)',
           backdropFilter: 'blur(20px)',
@@ -175,11 +174,11 @@ const Login = () => {
       >
         {/* Left Side - Branding */}
         <div
-          className="flex flex-col justify-center items-center p-12 text-white text-center relative"
+          className="flex flex-col justify-center items-center p-8 md:p-12 text-white text-center relative"
           style={{ background: 'linear-gradient(135deg, #c53030, #a02626)' }}
         >
           {/* Logo */}
-          <div className="mb-8">
+          <div className="mb-6 md:mb-8">
             <svg width="80" height="80" viewBox="0 0 100 100">
               <circle cx="50" cy="50" r="48" fill="none" stroke="white" strokeWidth="4" />
               <rect x="20" y="35" width="12" height="12" fill="white" />
@@ -193,8 +192,8 @@ const Login = () => {
             </svg>
           </div>
 
-          <h1 className="text-3xl font-bold mb-4">BECS E-Learning</h1>
-          <p className="text-lg opacity-90 leading-relaxed mb-8">
+          <h1 className="text-2xl md:text-3xl font-bold mb-2 md:mb-4">BECS E-Learning</h1>
+          <p className="text-sm md:text-lg opacity-90 leading-relaxed mb-6 md:mb-8">
             Access your personalized learning dashboard and continue your educational journey with us.
           </p>
 
@@ -220,10 +219,10 @@ const Login = () => {
         </div>
 
         {/* Right Side - Login Form */}
-        <div className="p-12 flex flex-col justify-center">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-slate-800 mb-2">Welcome Back</h2>
-            <p className="text-slate-500">Sign in to your account to continue learning</p>
+        <div className="p-6 sm:p-8 md:p-12 flex flex-col justify-center">
+          <div className="text-center mb-6 md:mb-8">
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-800 mb-2">Welcome Back</h2>
+            <p className="text-sm md:text-base text-slate-500">Sign in to your account to continue learning</p>
           </div>
 
           {/* Error Message */}
@@ -256,7 +255,7 @@ const Login = () => {
 
           <form onSubmit={handleSubmit} className="w-full">
             {/* Email Field */}
-            <div className="mb-6 form-group transition-transform duration-300">
+            <div className="mb-5 md:mb-6 form-group transition-transform duration-300">
               <label htmlFor="email" className="block mb-2 text-slate-800 font-semibold text-sm">
                 Email Address
               </label>
@@ -267,7 +266,7 @@ const Login = () => {
                 value={formData.email}
                 onChange={handleInputChange}
                 placeholder="Enter your email"
-                className="w-full px-5 py-4 rounded-xl text-base transition-all duration-300 outline-none"
+                className="w-full px-4 py-3 md:px-5 md:py-4 rounded-xl text-sm md:text-base transition-all duration-300 outline-none"
                 style={{
                   border: fieldErrors.email ? '2px solid #ef4444' : '2px solid #e2e8f0',
                   background: '#f8fafc',
@@ -276,8 +275,8 @@ const Login = () => {
                 onFocus={(e) => {
                   e.target.style.borderColor = fieldErrors.email ? '#ef4444' : '#c53030';
                   e.target.style.background = 'white';
-                  e.target.style.boxShadow = fieldErrors.email 
-                    ? '0 0 0 4px rgba(239, 68, 68, 0.1)' 
+                  e.target.style.boxShadow = fieldErrors.email
+                    ? '0 0 0 4px rgba(239, 68, 68, 0.1)'
                     : '0 0 0 4px rgba(197, 48, 48, 0.1)';
                   e.target.parentElement!.style.transform = 'translateY(-2px)';
                 }}
@@ -295,7 +294,7 @@ const Login = () => {
             </div>
 
             {/* Password Field */}
-            <div className="mb-6 form-group transition-transform duration-300">
+            <div className="mb-5 md:mb-6 form-group transition-transform duration-300">
               <label htmlFor="password" className="block mb-2 text-slate-800 font-semibold text-sm">
                 Password
               </label>
@@ -306,7 +305,7 @@ const Login = () => {
                 value={formData.password}
                 onChange={handleInputChange}
                 placeholder="Enter your password"
-                className="w-full px-5 py-4 rounded-xl text-base transition-all duration-300 outline-none"
+                className="w-full px-4 py-3 md:px-5 md:py-4 rounded-xl text-sm md:text-base transition-all duration-300 outline-none"
                 style={{
                   border: fieldErrors.password ? '2px solid #ef4444' : '2px solid #e2e8f0',
                   background: '#f8fafc',
@@ -315,8 +314,8 @@ const Login = () => {
                 onFocus={(e) => {
                   e.target.style.borderColor = fieldErrors.password ? '#ef4444' : '#c53030';
                   e.target.style.background = 'white';
-                  e.target.style.boxShadow = fieldErrors.password 
-                    ? '0 0 0 4px rgba(239, 68, 68, 0.1)' 
+                  e.target.style.boxShadow = fieldErrors.password
+                    ? '0 0 0 4px rgba(239, 68, 68, 0.1)'
                     : '0 0 0 4px rgba(197, 48, 48, 0.1)';
                   e.target.parentElement!.style.transform = 'translateY(-2px)';
                 }}
@@ -334,7 +333,7 @@ const Login = () => {
             </div>
 
             {/* Form Options */}
-            <div className="flex items-center justify-between mb-8 text-sm">
+            <div className="flex items-center justify-between mb-6 md:mb-8 text-xs sm:text-sm">
               <label className="flex items-center gap-2 text-slate-500 cursor-pointer">
                 <input
                   type="checkbox"
@@ -360,9 +359,8 @@ const Login = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className={`w-full text-white py-4 rounded-xl text-lg font-semibold transition-all duration-300 mb-6 ${
-                isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5'
-              }`}
+              className={`w-full text-white py-3 md:py-4 rounded-xl text-base md:text-lg font-semibold transition-all duration-300 mb-6 ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5'
+                }`}
               style={{
                 background: 'linear-gradient(135deg, #c53030, #a02626)',
                 fontFamily: 'inherit',
@@ -468,13 +466,6 @@ const Login = () => {
           animation: spin 1s linear infinite;
         }
         
-        @media (max-width: 768px) {
-          .login-container {
-            grid-template-columns: 1fr !important;
-            margin: 1rem;
-            max-width: 400px;
-          }
-        }
       `}</style>
     </div>
   );
