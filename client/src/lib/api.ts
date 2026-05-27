@@ -2,10 +2,10 @@ import axios, { AxiosError } from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
 
 // API Base URL - change this for production
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+export const API_BASE_URL = 'https://becs-lms-backend.onrender.com';
 
 // Debug: Log the API URL being used
-console.log('[API] Base URL:', API_BASE_URL);
+// console.log('[API] Base URL:', API_BASE_URL);
 
 // Create axios instance
 const api = axios.create({
