@@ -25,16 +25,30 @@ const app = express();
 const PORT = process.env.PORT;
 const MONGO_URI = process.env.MONGODB_URI;
 
-// CORS configuration
-const allowedOrigins = [process.env.CLIENT_URL, process.env.ADMIN_URL];
-
-app.use(cors({ 
-  origin: allowedOrigins,
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true
- }));
-
 app.use(express.json());
+// CORS configuration
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  process.env.ADMIN_URL,
+  "https://becs-lms-backend.vercel.app",
+  "https://becs-lms-admin.vercel.app", // just in case
+  "http://localhost:5173",
+].filter(Boolean);
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
 
 // Request logger for debugging
 app.use((req, res, next) => {
